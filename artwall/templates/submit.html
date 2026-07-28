@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Submit your piece — Code Art Wall</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    background: #0d0d16; color: #e8e8f0;
+    font-family: -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 10px 16px; background: #1a1a2b;
+    border-bottom: 1px solid #2c2c44; display: flex; align-items: baseline;
+    gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  #status { font-size: 12px; color: #9a9ab8; margin-left: auto; }
+  main { flex: 1; display: flex; min-height: 0; flex-wrap: wrap; }
+  #left { flex: 1 1 420px; display: flex; flex-direction: column;
+    min-width: 0; border-right: 1px solid #2c2c44; }
+  #editor { flex: 1; min-height: 320px; overflow: auto; }
+  #editor .cm-editor { height: 100%; font-size: 13px; }
+  #right { flex: 1 1 380px; display: flex; flex-direction: column; min-width: 0; }
+  #canvasbox { display: flex; align-items: center; justify-content: center;
+    padding: 12px; min-height: 280px; }
+  canvas { max-width: min(440px, 90vw); max-height: 440px; background: #000;
+    border: 1px solid #2c2c44; border-radius: 6px; }
+  #console { height: 110px; overflow-y: auto; background: #12121e;
+    border-top: 1px solid #2c2c44; padding: 6px 12px;
+    font: 11px/1.5 "SF Mono", Menlo, monospace; white-space: pre-wrap; }
+  #console .err { color: #ff7070; }
+  #bar { display: flex; gap: 8px; padding: 8px 12px; align-items: center;
+    border-top: 1px solid #2c2c44; flex-wrap: wrap; }
+  button { background: #26263e; color: #e8e8f0; border: 1px solid #3c3c5c;
+    border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #32324e; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  #preview-btn { background: #2d4a6a; border-color: #4070a0; font-weight: 600; }
+  #gate-msg { font-size: 12px; color: #9a9ab8; }
+  #gate-msg.ok { color: #7ad67a; }
+  #gate-msg.bad { color: #ff9a70; }
+  footer { border-top: 1px solid #2c2c44; background: #12121e;
+    padding: 14px 16px; }
+  form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type=text], input[type=email] { background: #1a1a2b; color: #e8e8f0;
+    border: 1px solid #3c3c5c; border-radius: 6px; padding: 8px 10px;
+    font-size: 13px; }
+  label.consent { font-size: 12px; color: #b8b8d0; display: flex; gap: 6px;
+    align-items: center; max-width: 420px; }
+  #submit-btn { background: #2d6a4f; border-color: #40916c; font-weight: 600; }
+  #pkg { font-size: 11px; color: #9a9ab8; margin-top: 8px; }
+  #pkg code { color: #b8c8e8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Code Art Wall — submit your piece</h1>
+  <span id="status">loading Python runtime (pyodide)…</span>
+</header>
+<main>
+  <div id="left">
+    <div id="editor"></div>
+    <div id="bar">
+      <button id="preview-btn" disabled>&#9654; Preview (Cmd/Ctrl+Enter)</button>
+      <button id="stop-btn" disabled>&#9632; Stop</button>
+      <span id="gate-msg">A successful preview is required before you can submit.</span>
+    </div>
+  </div>
+  <div id="right">
+    <div id="canvasbox"><canvas id="canvas" width="512" height="512"></canvas></div>
+    <div id="console"></div>
+  </div>
+</main>
+<footer>
+  <form method="post" action="/submit" id="submit-form">
+    <input type="hidden" name="code" id="code-field">
+    <input type="text" name="name" placeholder="Your name" required>
+    <input type="email" name="email" placeholder="Email" required>
+    <label class="consent">
+      <input type="checkbox" name="consent" required>
+      I agree that my name, email and artwork may be used for contest and
+      marketing purposes.
+    </label>
+    <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
+  </form>
+  <div id="pkg">
+    Contract: define exactly one of <code>draw()</code> (static) or
+    <code>draw(t)</code> (animated, t: 0&rarr;1 over one {{ frames // fps }} s loop);
+    return a numpy array, matplotlib Figure, or PIL Image.
+    Supported packages: {% for p in packages %}<code>{{ p }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+  </div>
+</footer>
+
+<script type="module">
+// ---------------------------------------------------------------- constants
+const LOOP_MS = {{ (frames / fps * 1000) | int }};   // one animation loop
+const MICROPIP_PKGS = ["colour", "trimesh", "svgpathtools"];
+
+const STARTER = `# Define draw() for a static piece, or draw(t) for an animated one
+# (t goes 0.0 -> 1.0 over one loop). Return a numpy array (HxWx3, 0..1
+# floats or uint8), a matplotlib Figure, or a PIL Image.
+import numpy as np
+
+SIZE = 512
+
+def draw(t):
+    y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE
+    r = 0.5 + 0.5 * np.sin(2 * np.pi * (x + t))
+    g = 0.5 + 0.5 * np.sin(2 * np.pi * (y - t))
+    b = 0.5 + 0.5 * np.sin(2 * np.pi * (x * y + 2 * t))
+    return np.dstack([r, g, b])
+`;
+
+// Same normalize()/contract logic as the render worker harness.
+const HARNESS = `
+import inspect
+import numpy as np
+
+_draw, _n_params = None, 0
+
+def _normalize(obj):
+    import sys
+    if "matplotlib" in sys.modules:
+        import matplotlib.pyplot as plt
+        from matplotlib.figure import Figure
+        if isinstance(obj, Figure):
+            obj.canvas.draw()
+            arr = np.asarray(obj.canvas.buffer_rgba())[..., :3].copy()
+            plt.close(obj)
+            return arr
+    if "PIL.Image" in sys.modules:
+        from PIL import Image
+        if isinstance(obj, Image.Image):
+            return np.asarray(obj.convert("RGB"))
+    arr = np.asarray(obj)
+    if arr.dtype != np.uint8:
+        arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
+    if arr.ndim == 2:
+        arr = np.dstack([arr] * 3)
+    return arr
+
+def setup(code):
+    """Exec submission code; returns 0 (static) or 1 (animated)."""
+    global _draw, _n_params
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+    except ImportError:
+        pass
+    ns = {"__name__": "__submission__"}
+    exec(compile(code, "<submission>", "exec"), ns)
+    _draw = ns.get("draw")
+    if not callable(_draw):
+        raise RuntimeError("submission must define draw() or draw(t)")
+    _n_params = len(inspect.signature(_draw).parameters)
+    if _n_params > 1:
+        raise RuntimeError("draw must take 0 or 1 parameters")
+    return _n_params
+
+def render(t=0.0):
+    """One frame as a contiguous (h, w, 4) uint8 RGBA array."""
+    obj = _draw() if _n_params == 0 else _draw(t)
+    arr = _normalize(obj)
+    h, w = arr.shape[0], arr.shape[1]
+    rgba = np.empty((h, w, 4), np.uint8)
+    rgba[..., :3] = arr[..., :3]
+    rgba[..., 3] = 255
+    return rgba
+`;
+
+// ------------------------------------------------------------- UI plumbing
+const $ = id => document.getElementById(id);
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const statusEl = $("status"), gateMsg = $("gate-msg"), consoleEl = $("console");
+
+function log(msg, isErr = false) {
+  const div = document.createElement("div");
+  if (isErr) div.className = "err";
+  div.textContent = msg;
+  consoleEl.appendChild(div);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+const status = s => { statusEl.textContent = s; };
+
+// ------------------------------------------- mandatory-preview gate state
+let previewedCode = null;   // code string of the last *successful* preview
+
+function setGate(ok, msg) {
+  $("submit-btn").disabled = !ok;
+  gateMsg.textContent = msg;
+  gateMsg.className = ok ? "ok" : "bad";
+}
+setGate(false, "A successful preview is required before you can submit.");
+
+// ------------------------------------------------------------- CodeMirror
+const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");
+const { python } = await import("https://esm.sh/@codemirror/lang-python@6.1.6");
+const { oneDark } = await import("https://esm.sh/@codemirror/theme-one-dark@6.1.2");
+
+const view = new EditorView({
+  doc: STARTER,
+  parent: $("editor"),
+  extensions: [
+    basicSetup, python(), oneDark,
+    EditorView.updateListener.of(update => {
+      if (update.docChanged && previewedCode !== null
+          && view.state.doc.toString() !== previewedCode) {
+        previewedCode = null;
+        setGate(false, "Code changed — preview again before submitting.");
+      }
+    }),
+  ],
+});
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); preview(); }
+});
+
+// ------------------------------------------------------------ Pyodide boot
+let pyodide, pySetup, pyRender;
+try {
+  const t0 = performance.now();
+  const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.mjs");
+  pyodide = await loadPyodide({ stdout: s => log(s), stderr: s => log(s, true) });
+  await pyodide.loadPackage("micropip");
+  pyodide.runPython(HARNESS);
+  pySetup = pyodide.globals.get("setup");
+  pyRender = pyodide.globals.get("render");
+  status(`ready — Python ${pyodide.version} booted in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  $("preview-btn").disabled = false;
+} catch (e) {
+  status("failed to load the Python runtime");
+  log("Could not load Pyodide — the preview (and therefore submitting) " +
+      "needs internet access. Reload to retry.", true);
+  log(String(e), true);
+}
+
+// -------------------------------------------------------- frame rendering
+function blitFrame(t) {
+  const proxy = pyRender(t);
+  const buf = proxy.getBuffer("u8clamped");
+  const [h, w] = buf.shape;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(buf.data), w, h), 0, 0);
+  buf.release();
+  proxy.destroy();
+}
+
+let animId = null;
+function stopAnim() {
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  $("stop-btn").disabled = true;
+}
+$("stop-btn").addEventListener("click", () => { stopAnim(); status("preview stopped"); });
+
+function startAnim() {
+  const start = performance.now();
+  function tick() {
+    const t = ((performance.now() - start) % LOOP_MS) / LOOP_MS;
+    try {
+      blitFrame(t);
+    } catch (e) {
+      stopAnim(); status("frame error"); log(e.message, true); return;
+    }
+    animId = requestAnimationFrame(tick);
+  }
+  animId = requestAnimationFrame(tick);
+  $("stop-btn").disabled = false;
+}
+
+// ------------------------------------------------------------ preview run
+async function loadPackagesFor(code) {
+  await pyodide.loadPackagesFromImports(code);
+  const micropip = pyodide.pyimport("micropip");
+  for (const pkg of MICROPIP_PKGS) {
+    const re = new RegExp(`^\\s*(import|from)\\s+${pkg}\\b`, "m");
+    if (re.test(code)) await micropip.install(pkg);
+  }
+  micropip.destroy();
+}
+
+async function preview() {
+  if (!pyodide || $("preview-btn").disabled) return;
+  stopAnim();
+  $("preview-btn").disabled = true;
+  const code = view.state.doc.toString();
+  try {
+    status("fetching packages…");
+    await loadPackagesFor(code);
+    status("running your code…");
+    const nParams = pySetup(code);
+    blitFrame(0);                       // first frame must succeed = the gate
+    if (nParams === 0) {
+      status("preview OK (static)");
+    } else {
+      status("preview OK (animated) — looping");
+      startAnim();
+    }
+    previewedCode = code;
+    setGate(true, "Preview succeeded — you can submit this code.");
+  } catch (e) {
+    status("preview failed");
+    log(e.message, true);
+    previewedCode = null;
+    setGate(false, "Preview failed — fix the error and preview again.");
+  } finally {
+    $("preview-btn").disabled = false;
+  }
+}
+$("preview-btn").addEventListener("click", preview);
+
+// --------------------------------------------------------------- submit
+$("submit-form").addEventListener("submit", e => {
+  const code = view.state.doc.toString();
+  if (previewedCode === null || code !== previewedCode) {
+    e.preventDefault();
+    setGate(false, "Preview the current code before submitting.");
+    return;
+  }
+  $("code-field").value = code;
+});
+</script>
+</body>
+</html>

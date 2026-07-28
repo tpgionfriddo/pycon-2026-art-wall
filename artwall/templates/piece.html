@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ piece.name }} — Code Art Wall</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: #05060f; color: #e8e8f0; padding: 20px;
+    font-family: -apple-system, "Segoe UI", sans-serif; }
+  #frame { width: min(85vmin, 900px); }
+  #frame img, #frame video { width: 100%; border-radius: 10px;
+    border: 1px solid #2c2c44; display: block; }
+  #source { width: 100%; max-height: 85vmin; overflow: auto; margin: 0;
+    background: #12121e; border: 1px solid #2c2c44; border-radius: 10px;
+    padding: 16px; font: 13px/1.5 "SF Mono", Menlo, monospace;
+    color: #d8f0d8; box-sizing: border-box; display: none; }
+  h1 { font-size: 18px; margin: 0; font-weight: 500; }
+  h1 span { color: #9a9ab8; }
+  button { background: #26263e; color: #e8e8f0; border: 1px solid #3c3c5c;
+    border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #32324e; }
+  a { color: #8ab4ff; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="frame">
+  {% if piece.kind == "animated" %}
+  <video src="{{ piece.media_url }}" autoplay muted loop playsinline></video>
+  {% else %}
+  <img src="{{ piece.media_url }}" alt="piece by {{ piece.name }}">
+  {% endif %}
+  <pre id="source">{{ code }}</pre>
+</div>
+<h1><span>by</span> {{ piece.name }}</h1>
+<button id="flip">Show the source</button>
+<a href="/wall">← back to the wall</a>
+
+<script>
+const media = document.querySelector("#frame video, #frame img");
+const source = document.getElementById("source");
+const flip = document.getElementById("flip");
+flip.addEventListener("click", () => {
+  const showingCode = source.style.display === "block";
+  source.style.display = showingCode ? "none" : "block";
+  media.style.display = showingCode ? "block" : "none";
+  flip.textContent = showingCode ? "Show the source" : "Show the piece";
+});
+</script>
+</body>
+</html>

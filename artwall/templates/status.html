@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Submission #{{ submission.id }} — Code Art Wall</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    background: #0d0d16; color: #e8e8f0; text-align: center;
+    font-family: -apple-system, "Segoe UI", sans-serif; padding: 24px; }
+  h1 { font-size: 20px; margin: 0; }
+  #state { font-size: 17px; color: #9a9ab8; }
+  #state.ok { color: #7ad67a; }
+  #state.bad { color: #ff7070; }
+  #error { max-width: 640px; white-space: pre-wrap; text-align: left;
+    background: #1a1a2b; border: 1px solid #6a2d2d; border-radius: 6px;
+    padding: 12px; font: 12px/1.5 "SF Mono", Menlo, monospace; color: #ff9a9a;
+    display: none; }
+  #media { max-width: min(512px, 90vw); display: none; }
+  #media img, #media video { width: 100%; border-radius: 8px;
+    border: 1px solid #2c2c44; }
+  a { color: #8ab4ff; }
+  .spinner { width: 26px; height: 26px; border: 3px solid #2c2c44;
+    border-top-color: #8ab4ff; border-radius: 50%;
+    animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<h1>Submission #{{ submission.id }} — {{ submission.name }}</h1>
+<div class="spinner" id="spinner"></div>
+<div id="state">checking status…</div>
+<pre id="error"></pre>
+<div id="media"></div>
+<div id="links"><a href="/">Submit another piece</a> · <a href="/wall">See the wall</a></div>
+
+<script>
+const ID = {{ submission.id }};
+const MESSAGES = {
+  queued: "In the render queue — hold tight…",
+  rendering: "Rendering in the sandbox…",
+  rendered: "Rendered! Waiting for a human moderator to approve it.",
+  approved: "Approved — your piece is on the wall! 🎉",
+  rejected: "This piece was not approved for the wall.",
+  failed: "The render failed.",
+};
+const DONE = new Set(["approved", "rejected", "failed"]);
+
+function showMedia(s) {
+  if (!s.media_url) return;
+  const media = document.getElementById("media");
+  media.innerHTML = s.kind === "animated"
+    ? `<video src="${s.media_url}" autoplay muted loop playsinline></video>`
+    : `<img src="${s.media_url}" alt="your piece">`;
+  media.style.display = "block";
+}
+
+async function poll() {
+  try {
+    const resp = await fetch(`/api/submission/${ID}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const s = await resp.json();
+    const state = document.getElementById("state");
+    state.textContent = MESSAGES[s.status] || s.status;
+    state.className = s.status === "approved" ? "ok"
+      : (s.status === "failed" || s.status === "rejected") ? "bad" : "";
+    if (s.status === "failed" && s.error) {
+      const err = document.getElementById("error");
+      err.textContent = s.error;
+      err.style.display = "block";
+    }
+    if (["rendered", "approved"].includes(s.status)) showMedia(s);
+    if (s.status === "approved") {
+      document.getElementById("links").innerHTML +=
+        ` · <a href="/piece/${ID}">View your piece</a>`;
+    }
+    if (DONE.has(s.status)) {
+      document.getElementById("spinner").style.display = "none";
+      return;  // stop polling
+    }
+  } catch (e) { /* transient network error: keep polling */ }
+  setTimeout(poll, 2000);
+}
+poll();
+</script>
+</body>
+</html>

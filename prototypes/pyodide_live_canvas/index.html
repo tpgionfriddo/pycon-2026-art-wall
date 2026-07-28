@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<!--
+  THROWAWAY PROTOTYPE - feasibility check, not production code.
+  Question: can attendees live-edit draw()/draw(t) Python (numpy, matplotlib)
+  in the browser and see it render on a canvas via Pyodide?
+  Stretch: can pygame-ce run interactively via Pyodide's SDL support?
+  See README.md in this folder.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE - Pyodide live canvas</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; flex-direction: column;
+    background: #0d0d16; color: #e8e8f0;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 8px 14px; background: #1a1a2b; border-bottom: 1px solid #2c2c44;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  header h1 { font-size: 15px; margin: 0; }
+  header .tag { font-size: 11px; color: #f0a030; border: 1px solid #f0a030;
+    padding: 1px 6px; border-radius: 3px; }
+  #status { font-size: 12px; color: #9a9ab8; margin-left: auto; }
+  main { flex: 1; display: flex; min-height: 0; }
+  #left { flex: 1; display: flex; flex-direction: column; min-width: 0;
+    border-right: 1px solid #2c2c44; }
+  #presets { display: flex; gap: 6px; padding: 8px; flex-wrap: wrap; }
+  button {
+    background: #26263e; color: #e8e8f0; border: 1px solid #3c3c5c;
+    border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { background: #32324e; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  #run { background: #2d6a4f; border-color: #40916c; font-weight: 600; }
+  #stop { background: #6a2d2d; border-color: #914040; }
+  #editor {
+    flex: 1; width: 100%; resize: none; border: none; outline: none;
+    background: #12121e; color: #d8f0d8; padding: 10px;
+    font: 13px/1.45 "SF Mono", Menlo, monospace; tab-size: 4;
+  }
+  #right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #canvasbox { flex: 1; display: flex; align-items: center; justify-content: center;
+    min-height: 0; padding: 10px; }
+  canvas { max-width: 100%; max-height: 100%; background: #000;
+    image-rendering: pixelated; border: 1px solid #2c2c44; }
+  #stats { font: 12px "SF Mono", Menlo, monospace; color: #7ad67a;
+    padding: 4px 12px; white-space: pre; }
+  #console {
+    height: 130px; overflow-y: auto; background: #12121e;
+    border-top: 1px solid #2c2c44; padding: 6px 12px;
+    font: 11px/1.5 "SF Mono", Menlo, monospace; white-space: pre-wrap;
+  }
+  #console .err { color: #ff7070; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pyodide live canvas</h1>
+  <span class="tag">THROWAWAY PROTOTYPE</span>
+  <span id="status">booting…</span>
+</header>
+<main>
+  <div id="left">
+    <div id="presets">
+      <button id="run" disabled>&#9654; Run (Cmd/Ctrl+Enter)</button>
+      <button id="stop" disabled>&#9632; Stop</button>
+      <span style="flex:1"></span>
+      <button class="preset" data-p="starter">starter</button>
+      <button class="preset" data-p="plasma">plasma (numpy, animated)</button>
+      <button class="preset" data-p="flow">flow field (matplotlib)</button>
+      <button class="preset" data-p="pygame">pygame-ce (stretch)</button>
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+  </div>
+  <div id="right">
+    <div id="canvasbox"><canvas id="canvas" width="512" height="512"></canvas></div>
+    <div id="stats"></div>
+    <div id="console"></div>
+  </div>
+</main>
+
+<script type="module">
+// ---------- presets (plasma & flow field copied verbatim from samples/) ----
+const PRESETS = {
+starter: `# Contract: define draw() for a static piece, or draw(t) for an
+# animated one (t goes 0.0 -> 1.0 over one 8 s loop).
+# Return a numpy uint8/float array, a matplotlib Figure, or a PIL Image.
+import numpy as np
+
+SIZE = 512
+
+def draw(t):
+    y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE
+    r = 0.5 + 0.5 * np.sin(2 * np.pi * (x + t))
+    g = 0.5 + 0.5 * np.sin(2 * np.pi * (y - t))
+    b = 0.5 + 0.5 * np.sin(2 * np.pi * (x * y + 2 * t))
+    return np.dstack([r, g, b])
+`,
+
+plasma: `"""Plasma shader - animated. Pure numpy, loops perfectly."""
+import numpy as np
+
+SIZE = 512
+
+def draw(t):
+    a = 2 * np.pi * t  # one full cycle over the loop
+    y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE * 4.0 - 2.0
+
+    v = (
+        np.sin(3.0 * x + a)
+        + np.sin(3.0 * (x * np.cos(a) + y * np.sin(a)))
+        + np.sin(4.0 * np.hypot(x, y) - 2.0 * a)
+    )
+
+    r = 0.5 + 0.5 * np.sin(np.pi * v)
+    g = 0.5 + 0.5 * np.sin(np.pi * v + 2.094)
+    b = 0.5 + 0.5 * np.sin(np.pi * v + 4.189)
+    return (np.dstack([r, g, b]) * 255).astype(np.uint8)
+`,
+
+flow: `"""Flow field trails - static. numpy + matplotlib."""
+import numpy as np
+import matplotlib.pyplot as plt
+
+def field(p):
+    x, y = p[:, 0], p[:, 1]
+    a = np.sin(1.7 * y + np.cos(2.3 * x)) + 0.5 * np.cos(1.3 * x - 0.7 * y)
+    return np.column_stack([np.cos(a * np.pi), np.sin(a * np.pi)])
+
+def draw():
+    rng = np.random.default_rng(42)
+    pts = rng.uniform(-2, 2, (900, 2))
+
+    trails = [pts.copy()]
+    for _ in range(70):
+        pts = pts + 0.02 * field(pts)
+        trails.append(pts.copy())
+    trails = np.array(trails)  # (steps, n, 2)
+
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+    fig.patch.set_facecolor("#0d0d16")
+    ax.set_facecolor("#0d0d16")
+
+    colors = plt.cm.plasma(np.linspace(0, 1, trails.shape[1]))
+    for i in range(trails.shape[1]):
+        ax.plot(trails[:, i, 0], trails[:, i, 1],
+                color=colors[i], lw=0.6, alpha=0.65)
+
+    ax.set_xlim(-2, 2), ax.set_ylim(-2, 2)
+    ax.set_aspect("equal"), ax.axis("off")
+    fig.subplots_adjust(0, 0, 1, 1)
+    return fig
+`,
+
+pygame: `# STRETCH GOAL - pygame-ce via Pyodide's experimental SDL support.
+# Not part of the draw()/draw(t) contract; the loop draws straight to the
+# canvas. Press Stop to end it. Click the canvas to scatter the orbits.
+import asyncio, math, random
+import pygame
+import js
+
+pygame.init()
+screen = pygame.display.set_mode((512, 512))
+
+async def main():
+    t = 0
+    kick = 0.0
+    while js.window._keepRunning:
+        for ev in pygame.event.get():
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                kick = 1.0
+        screen.fill((13, 13, 22))
+        for i in range(24):
+            a = t / 40 + i * math.tau / 24
+            rr = 150 + 60 * math.sin(t / 25 + i) + kick * random.uniform(-80, 80)
+            x = 256 + rr * math.cos(a)
+            y = 256 + rr * math.sin(a * 1.0)
+            c = (255, 90 + (i * 7) % 160, 40 + (i * 11) % 200)
+            pygame.draw.circle(screen, c, (int(x), int(y)), 10)
+        pygame.display.flip()
+        t += 1
+        kick *= 0.9
+        await asyncio.sleep(1 / 60)
+    pygame.quit()
+
+asyncio.ensure_future(main())
+`,
+};
+
+// ---------- Python harness (normalize() ported from samples/preview.py) ----
+const HARNESS = `
+import inspect
+import numpy as np
+
+_draw, _n_params = None, 0
+
+def _normalize(obj):
+    import sys
+    if "matplotlib" in sys.modules:
+        import matplotlib.pyplot as plt
+        from matplotlib.figure import Figure
+        if isinstance(obj, Figure):
+            obj.canvas.draw()
+            arr = np.asarray(obj.canvas.buffer_rgba())[..., :3].copy()
+            plt.close(obj)
+            return arr
+    if "PIL.Image" in sys.modules:
+        from PIL import Image
+        if isinstance(obj, Image.Image):
+            return np.asarray(obj.convert("RGB"))
+    arr = np.asarray(obj)
+    if arr.dtype != np.uint8:
+        arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
+    if arr.ndim == 2:
+        arr = np.dstack([arr] * 3)
+    return arr
+
+def setup(code):
+    """Exec submission code; returns 0 (static) or 1 (animated)."""
+    global _draw, _n_params
+    try:
+        import matplotlib
+        matplotlib.use("Agg")  # avoid Pyodide's DOM backend
+    except ImportError:
+        pass
+    ns = {"__name__": "__submission__"}
+    exec(compile(code, "<submission>", "exec"), ns)
+    _draw = ns.get("draw")
+    if not callable(_draw):
+        raise RuntimeError("submission must define draw() or draw(t)")
+    _n_params = len(inspect.signature(_draw).parameters)
+    if _n_params > 1:
+        raise RuntimeError("draw must take 0 or 1 parameters")
+    return _n_params
+
+def render(t=0.0):
+    """One frame as a contiguous (h, w, 4) uint8 RGBA array."""
+    obj = _draw() if _n_params == 0 else _draw(t)
+    arr = _normalize(obj)
+    h, w = arr.shape[0], arr.shape[1]
+    rgba = np.empty((h, w, 4), np.uint8)
+    rgba[..., :3] = arr[..., :3]
+    rgba[..., 3] = 255
+    return rgba
+`;
+
+// ---------- UI plumbing ----------------------------------------------------
+const $ = id => document.getElementById(id);
+const editor = $("editor"), statusEl = $("status"), statsEl = $("stats");
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const consoleEl = $("console");
+const LOOP_MS = 8000;   // one loop = 8 s, matches the wall's video spec
+
+function log(msg, isErr = false) {
+  const div = document.createElement("div");
+  if (isErr) div.className = "err";
+  div.textContent = msg;
+  consoleEl.appendChild(div);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+const status = s => { statusEl.textContent = s; };
+
+editor.value = PRESETS.starter;
+document.querySelectorAll(".preset").forEach(b =>
+  b.addEventListener("click", () => { stopAnim(); editor.value = PRESETS[b.dataset.p]; }));
+editor.addEventListener("keydown", e => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const s = editor.selectionStart;
+    editor.setRangeText("    ", s, editor.selectionEnd, "end");
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }
+});
+
+// ---------- Pyodide boot ----------------------------------------------------
+status("loading Pyodide runtime from CDN…");
+const t0 = performance.now();
+const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.mjs");
+const pyodide = await loadPyodide({
+  stdout: s => log(s),
+  stderr: s => log(s, true),
+});
+await pyodide.loadPackage("micropip");
+const micropip = pyodide.pyimport("micropip");
+await micropip.install('colour');
+await micropip.install('trimesh');
+ await pyodide.loadPackage("matplotlib");
+ await pyodide.loadPackage("numpy");
+pyodide.runPython(HARNESS);
+const pySetup = pyodide.globals.get("setup");
+const pyRender = pyodide.globals.get("render");
+window._keepRunning = false;
+status(`ready - runtime booted in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+log(`[proto] Pyodide ${pyodide.version} ready (${((performance.now() - t0) / 1000).toFixed(1)} s boot)`);
+$("run").disabled = false;
+
+// ---------- frame rendering -------------------------------------------------
+function blitFrame(t) {
+  const proxy = pyRender(t);
+  const buf = proxy.getBuffer("u8clamped");
+  const [h, w] = buf.shape;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(buf.data), w, h), 0, 0);
+  buf.release();
+  proxy.destroy();
+}
+
+let animId = null;
+function stopAnim() {
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  window._keepRunning = false;   // signals the pygame loop, if any
+  $("stop").disabled = true;
+}
+$("stop").addEventListener("click", () => { stopAnim(); status("stopped"); });
+
+function startAnim() {
+  const start = performance.now();
+  let frames = 0, msSum = 0;
+  function tick() {
+    const t = ((performance.now() - start) % LOOP_MS) / LOOP_MS;
+    const f0 = performance.now();
+    try {
+      blitFrame(t);
+    } catch (e) {
+      stopAnim(); status("frame error"); log(e.message, true); return;
+    }
+    msSum += performance.now() - f0;
+    frames++;
+    if (frames % 30 === 0) {
+      const avg = msSum / 30; msSum = 0;
+      statsEl.textContent =
+        `animated  t=${t.toFixed(2)}  frame ${avg.toFixed(1)} ms  ~${(1000 / avg).toFixed(0)} fps max`;
+    }
+    animId = requestAnimationFrame(tick);
+  }
+  animId = requestAnimationFrame(tick);
+  $("stop").disabled = false;
+}
+
+// ---------- run button -------------------------------------------------------
+async function run() {
+  stopAnim();
+  $("run").disabled = true;
+  statsEl.textContent = "";
+  const code = editor.value;
+  try {
+    status("fetching packages…");
+    const p0 = performance.now();
+    await pyodide.loadPackagesFromImports(code);
+    const pkgMs = performance.now() - p0;
+
+    if (/^\s*import pygame|^\s*from pygame/m.test(code)) {
+      // stretch-goal path: experimental SDL, code draws to the canvas itself
+      pyodide._api._skip_unwind_fatal_error = true;   // required for SDL
+      pyodide.canvas.setCanvas2D(canvas);             // canvas id must be "canvas"
+      window._keepRunning = true;
+      $("stop").disabled = false;
+      status("running pygame loop (experimental SDL)");
+      statsEl.textContent = `pygame-ce via SDL  packages ${(pkgMs / 1000).toFixed(1)} s`;
+      await pyodide.runPythonAsync(code);
+      return;
+    }
+
+    status("executing submission…");
+    const s0 = performance.now();
+    const nParams = pySetup(code);
+    if (nParams === 0) {
+      const r0 = performance.now();
+      blitFrame(0);
+      statsEl.textContent =
+        `static  packages ${(pkgMs / 1000).toFixed(1)} s  render ${(performance.now() - r0).toFixed(0)} ms`;
+      status("done (static)");
+    } else {
+      log(`[proto] setup ${(performance.now() - s0).toFixed(0)} ms, starting 8 s loop`);
+      status("animating draw(t)…");
+      startAnim();
+    }
+  } catch (e) {
+    status("error");
+    log(e.message, true);
+  } finally {
+    $("run").disabled = false;
+  }
+}
+$("run").addEventListener("click", run);
+</script>
+</body>
+</html>
