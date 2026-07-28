@@ -221,7 +221,7 @@ try {
   const t0 = performance.now();
   const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.mjs");
   pyodide = await loadPyodide({ stdout: s => log(s), stderr: s => log(s, true) });
-  await pyodide.loadPackage("micropip");
+  await pyodide.loadPackage(["micropip", "numpy"]);  // HARNESS imports numpy
   pyodide.runPython(HARNESS);
   pySetup = pyodide.globals.get("setup");
   pyRender = pyodide.globals.get("render");
