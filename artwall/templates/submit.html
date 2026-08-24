@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Submit your piece — Code Art Wall</title>
+<title>Submit your piece: Code Art Wall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
@@ -14,11 +14,10 @@
     background: #ffffff; color: #19191c;
     font-family: -apple-system, "Segoe UI", sans-serif; }
   header { padding: 10px 16px; background: #ffffff;
-    border-bottom: 3px solid transparent;
-    border-image: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF) 1;
+    border-bottom: 1px solid #d8d8e0;
     display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   header h1 { font-size: 16px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
-    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    color: #19191c; }
   #status { font-size: 12px; color: #6f737a; margin-left: auto; }
   main { flex: 1; display: flex; min-height: 0; flex-wrap: wrap; }
   #left { flex: 1 1 420px; display: flex; flex-direction: column;
@@ -64,15 +63,15 @@
 </head>
 <body>
 <header>
-  <h1>Code Art Wall — submit your piece</h1>
-  <span id="status">loading Python runtime (pyodide)…</span>
+  <h1>Code Art Wall: submit your piece</h1>
+  <span id="status">loading Python runtime (pyodide)...</span>
 </header>
 <main>
   <div id="left">
     <div id="editor"></div>
     <div id="bar">
-      <button id="preview-btn" disabled>&#9654; Preview (Cmd/Ctrl+Enter)</button>
-      <button id="stop-btn" disabled>&#9632; Stop</button>
+      <button id="preview-btn" disabled>Preview (Cmd/Ctrl+Enter)</button>
+      <button id="stop-btn" disabled>Stop</button>
       <span id="gate-msg">A successful preview is required before you can submit.</span>
     </div>
   </div>
@@ -94,12 +93,12 @@
       conditions</a>.
     </label>
     <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
-    <span id="byline-hint">Your byline is the only thing shown with your piece
-      — edit it to use a handle, or clear it to appear with no name.</span>
+    <span id="byline-hint">Your byline is the only thing shown with your
+      piece. A handle is fine. Leave it empty to appear with no name.</span>
   </form>
   <div id="pkg">
     Contract: define exactly one of <code>draw()</code> (static) or
-    <code>draw(t)</code> (animated, t: 0&rarr;1 over one {{ frames // fps }} s loop);
+    <code>draw(t)</code> (animated, t: 0 to 1 over one {{ frames // fps }} s loop);
     return a numpy array, matplotlib Figure, or PIL Image.
     Supported packages: {% for p in packages %}<code>{{ p }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
   </div>
@@ -208,7 +207,7 @@ setGate(false, "A successful preview is required before you can submit.");
 
 // ---------------------------------------------------------------- byline
 // Credit is the default: the byline tracks the name until the attendee edits
-// it themselves, after which it is theirs — including when they clear it.
+// it themselves. After that the byline is theirs, including when they clear it.
 const nameField = $("name-field"), bylineField = $("byline-field");
 let bylineEdited = false;
 bylineField.addEventListener("input", () => { bylineEdited = true; });
@@ -229,7 +228,7 @@ const view = new EditorView({
       if (update.docChanged && previewedCode !== null
           && view.state.doc.toString() !== previewedCode) {
         previewedCode = null;
-        setGate(false, "Code changed — preview again before submitting.");
+        setGate(false, "Code changed. Preview again before submitting.");
       }
     }),
   ],
@@ -248,12 +247,12 @@ try {
   pyodide.runPython(HARNESS);
   pySetup = pyodide.globals.get("setup");
   pyRender = pyodide.globals.get("render");
-  status(`ready — Python ${pyodide.version} booted in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  status(`ready: Python ${pyodide.version} booted in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   $("preview-btn").disabled = false;
 } catch (e) {
   status("failed to load the Python runtime");
-  log("Could not load Pyodide — the preview (and therefore submitting) " +
-      "needs internet access. Reload to retry.", true);
+  log("Reload the page to retry. The preview (and therefore submitting) " +
+      "needs internet access, and Pyodide could not be loaded.", true);
   log(String(e), true);
 }
 
@@ -308,24 +307,24 @@ async function preview() {
   $("preview-btn").disabled = true;
   const code = view.state.doc.toString();
   try {
-    status("fetching packages…");
+    status("fetching packages...");
     await loadPackagesFor(code);
-    status("running your code…");
+    status("running your code...");
     const nParams = pySetup(code);
     blitFrame(0);                       // first frame must succeed = the gate
     if (nParams === 0) {
       status("preview OK (static)");
     } else {
-      status("preview OK (animated) — looping");
+      status("preview OK (animated, looping)");
       startAnim();
     }
     previewedCode = code;
-    setGate(true, "Preview succeeded — you can submit this code.");
+    setGate(true, "Preview succeeded. You can submit this code.");
   } catch (e) {
     status("preview failed");
     log(e.message, true);
     previewedCode = null;
-    setGate(false, "Preview failed — fix the error and preview again.");
+    setGate(false, "Preview failed. Fix the error and preview again.");
   } finally {
     $("preview-btn").disabled = false;
   }
