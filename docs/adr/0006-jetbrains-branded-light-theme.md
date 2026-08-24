@@ -26,8 +26,9 @@ The wall is a gallery surface, not a working surface. Against a light
 background the tiles read as a grid of documents; against near-black the
 chrome recedes and the pieces themselves carry the screen — which is the
 whole point of the booth TV. So the wall alone uses a dark ground, while
-submit, status, piece, and admin keep the light theme described above.
-The logo-gradient accent and JetBrains Mono are unchanged on all five pages.
+submit, status, piece, admin — and the terms page added after this
+amendment — keep the light theme described above.
+The logo-gradient accent and JetBrains Mono are unchanged on every page.
 
 This also reverses this ADR's rejection of shipping logo assets: the wall
 carries the PyCharm logo, so the asset is committed and served from a

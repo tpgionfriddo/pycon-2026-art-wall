@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ piece.name }} — Code Art Wall</title>
+<title>{% if piece.byline %}{{ piece.byline }} — {% endif %}Code Art Wall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
@@ -35,11 +35,11 @@
   {% if piece.kind == "animated" %}
   <video src="{{ piece.media_url }}" autoplay muted loop playsinline></video>
   {% else %}
-  <img src="{{ piece.media_url }}" alt="piece by {{ piece.name }}">
+  <img src="{{ piece.media_url }}" alt="{% if piece.byline %}piece by {{ piece.byline }}{% else %}an unattributed piece{% endif %}">
   {% endif %}
   <pre id="source">{{ code }}</pre>
 </div>
-<h1><span>by</span> {{ piece.name }}</h1>
+{% if piece.byline %}<h1><span>by</span> {{ piece.byline }}</h1>{% endif %}
 <button id="flip">Show the source</button>
 <a href="/wall">← back to the wall</a>
 

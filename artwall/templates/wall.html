@@ -158,13 +158,18 @@
         a.innerHTML = piece.kind === "animated"
             ? `<video src="${piece.media_url}" autoplay muted loop playsinline></video>`
             : `<img src="${piece.media_url}" alt="" loading="lazy">`;
-        const by = document.createElement("div");
-        by.className = "by";
-        by.textContent = piece.name;
-        a.appendChild(by);
+        if (piece.byline) {                 // cleared byline: no credit at all
+            const by = document.createElement("div");
+            by.className = "by";
+            by.textContent = piece.byline;
+            a.appendChild(by);
+        }
         grid.appendChild(a);
         known.add(piece.id);
-        if (announce) toast(`New piece by ${piece.name}!`);
+        if (announce) {
+            toast(piece.byline ? `New piece by ${piece.byline}!`
+                               : "A new piece is on the wall!");
+        }
     }
 
     function layout() {

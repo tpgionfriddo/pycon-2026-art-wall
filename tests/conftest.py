@@ -12,6 +12,7 @@ VALID_FORM = {
     "code": "def draw():\n    return [[0]]\n",
     "name": "Ada Lovelace",
     "email": "ada@example.com",
+    "byline": "Ada Lovelace",   # what the form's mirroring produces
     "consent": "on",
 }
 
@@ -50,3 +51,18 @@ def conn(client):
 def submit(client, **overrides):
     form = {**VALID_FORM, **overrides}
     return client.post("/submit", data=form, follow_redirects=False)
+
+
+def rendered(client, conn, **overrides) -> int:
+    """A submission that has been through the worker and awaits moderation."""
+    submit(client, **overrides)
+    row = db.claim_next_queued(conn)
+    db.mark_rendered(conn, row["id"], "static", f"{row['id']}.png")
+    return row["id"]
+
+
+def approved(client, conn, **overrides) -> int:
+    """A piece on the wall."""
+    submission_id = rendered(client, conn, **overrides)
+    db.moderate(conn, submission_id, approved=True)
+    return submission_id

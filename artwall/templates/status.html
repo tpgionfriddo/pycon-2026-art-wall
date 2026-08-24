@@ -49,9 +49,10 @@ const MESSAGES = {
   rendered: "Rendered! Waiting for a human moderator to approve it.",
   approved: "Approved — your piece is on the wall! 🎉",
   rejected: "This piece was not approved for the wall.",
+  removed: "This piece has been taken down from the wall.",
   failed: "The render failed.",
 };
-const DONE = new Set(["approved", "rejected", "failed"]);
+const DONE = new Set(["approved", "rejected", "removed", "failed"]);
 
 function showMedia(s) {
   if (!s.media_url) return;
@@ -70,7 +71,7 @@ async function poll() {
     const state = document.getElementById("state");
     state.textContent = MESSAGES[s.status] || s.status;
     state.className = s.status === "approved" ? "ok"
-      : (s.status === "failed" || s.status === "rejected") ? "bad" : "";
+      : ["failed", "rejected", "removed"].includes(s.status) ? "bad" : "";
     if (s.status === "failed" && s.error) {
       const err = document.getElementById("error");
       err.textContent = s.error;

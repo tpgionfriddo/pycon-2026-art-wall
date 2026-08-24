@@ -17,8 +17,13 @@
   h1 { font-size: 17px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
     background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #counts { color: #6f737a; font-size: 13px; }
+  #oldest { color: #19191c; font-size: 13px; font-weight: 600; }
   header a { margin-left: auto; color: #6B57FF; font-size: 13px; }
-  main { padding: 18px; display: grid; gap: 16px;
+  main { padding: 18px; }
+  h2 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #6f737a; font-weight: 600; }
+  h2 + .cards { margin-bottom: 28px; }
+  .cards { display: grid; gap: 16px;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
   .card { background: #ffffff; border: 1px solid #d8d8e0; border-radius: 8px;
     overflow: hidden; display: flex; flex-direction: column; }
@@ -26,6 +31,8 @@
     background: #000; }
   .meta { padding: 10px 12px; font-size: 13px; }
   .meta .who { font-weight: 600; }
+  .meta .byline { color: #19191c; }
+  .meta .byline .none { color: #6f737a; font-style: italic; }
   .meta .mail { color: #6f737a; }
   details { padding: 0 12px 8px; font-size: 12px; }
   details pre { max-height: 220px; overflow: auto; background: #f7f7fa;
@@ -35,8 +42,9 @@
   .actions button { flex: 1; padding: 9px; font-size: 14px; cursor: pointer;
     border-radius: 6px; border: 1px solid; font-weight: 600; }
   .approve button { background: #e6f9ef; border-color: #21D789; color: #14804a; }
-  .reject button { background: #ffecf1; border-color: #FE2857; color: #c81f4d; }
-  #none { padding: 60px; text-align: center; color: #6f737a; grid-column: 1/-1; }
+  .reject button, .takedown button { background: #ffecf1;
+    border-color: #FE2857; color: #c81f4d; }
+  .empty { padding: 40px; text-align: center; color: #6f737a; grid-column: 1/-1; }
 </style>
 </head>
 <body>
@@ -45,33 +53,62 @@
   <span id="counts">
     {% for status, n in counts.items() %}{{ status }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}
   </span>
+  {% if oldest_wait %}
+  <span id="oldest">oldest queued: {{ oldest_wait }}</span>
+  {% endif %}
   <a href="/admin/export.csv">Export CSV</a>
 </header>
-<main>
-  {% for s in pending %}
+{# `autoplay` is off for the on-the-wall section: it grows all event, and
+   fifty playing videos would make the page the takedown lives on unusable. #}
+{% macro card(s, autoplay=true) %}
   <div class="card">
     {% if s.kind == "animated" %}
-    <video src="{{ s.media_url }}" autoplay muted loop playsinline></video>
+    <video src="{{ s.media_url }}" muted loop playsinline
+           {% if autoplay %}autoplay{% else %}controls preload="metadata"{% endif %}></video>
     {% else %}
     <img src="{{ s.media_url }}" alt="">
     {% endif %}
     <div class="meta">
       <div class="who">#{{ s.id }} — {{ s.name }}</div>
+      <div class="byline">wall byline:
+        {%- if s.byline %} “{{ s.byline }}”
+        {%- else %} <span class="none">none — shown unattributed</span>{% endif %}
+      </div>
       <div class="mail">{{ s.email }} · {{ s.created_at }}</div>
     </div>
     <details><summary>source</summary><pre>{{ s.code }}</pre></details>
-    <div class="actions">
+    <div class="actions">{{ caller() }}</div>
+  </div>
+{% endmacro %}
+<main>
+  <h2>Waiting for moderation</h2>
+  <div class="cards">
+    {% for s in pending %}
+      {% call card(s) %}
       <form class="approve" method="post" action="/admin/submissions/{{ s.id }}/approve">
         <button>Approve</button>
       </form>
       <form class="reject" method="post" action="/admin/submissions/{{ s.id }}/reject">
         <button>Reject</button>
       </form>
-    </div>
+      {% endcall %}
+    {% else %}
+    <div class="empty">Nothing waiting for moderation. This page does not auto-refresh — reload for new pieces.</div>
+    {% endfor %}
   </div>
-  {% else %}
-  <div id="none">Nothing waiting for moderation. This page does not auto-refresh — reload for new pieces.</div>
-  {% endfor %}
+
+  <h2>On the wall</h2>
+  <div class="cards">
+    {% for s in on_wall %}
+      {% call card(s, autoplay=false) %}
+      <form class="takedown" method="post" action="/admin/submissions/{{ s.id }}/takedown">
+        <button>Take down</button>
+      </form>
+      {% endcall %}
+    {% else %}
+    <div class="empty">Nothing on the wall yet.</div>
+    {% endfor %}
+  </div>
 </main>
 </body>
 </html>

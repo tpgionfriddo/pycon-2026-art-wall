@@ -41,9 +41,9 @@ def test_status_page_renders(client):
 
 def test_wall_only_lists_approved(client, conn):
     submit(client)                       # 1: stays queued
-    submit(client, name="Grace")         # 2: rendered, not moderated
-    submit(client, name="Mary")          # 3: approved
-    submit(client, name="Edsger")        # 4: rejected
+    submit(client, name="Grace", byline="Grace")   # 2: rendered only
+    submit(client, name="Mary", byline="Mary")     # 3: approved
+    submit(client, name="Edsger", byline="Edsger") # 4: rejected
 
     for sid in (2, 3, 4):
         conn.execute(
@@ -55,7 +55,7 @@ def test_wall_only_lists_approved(client, conn):
 
     pieces = client.get("/api/wall").json()["pieces"]
     assert [p["id"] for p in pieces] == [3]
-    assert pieces[0]["name"] == "Mary"
+    assert pieces[0]["byline"] == "Mary"
     assert pieces[0]["media_url"] == "/media/3.png"
     assert pieces[0]["kind"] == "static"
 
@@ -69,6 +69,7 @@ def test_wall_json_has_no_contact_data(client, conn):
     piece = client.get("/api/wall").json()["pieces"][0]
     assert "email" not in piece
     assert "code" not in piece
+    assert "name" not in piece          # the byline is the only credit
 
 
 def test_piece_page_only_for_approved(client, conn):
@@ -80,7 +81,7 @@ def test_piece_page_only_for_approved(client, conn):
     db.moderate(conn, 1, approved=True)
     resp = client.get("/piece/1")
     assert resp.status_code == 200
-    assert "Ada Lovelace" in resp.text
+    assert "/media/1.png" in resp.text
 
 
 def test_wall_page_renders(client):

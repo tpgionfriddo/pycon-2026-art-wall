@@ -54,8 +54,10 @@
     font-size: 13px; }
   label.consent { font-size: 12px; color: #6f737a; display: flex; gap: 6px;
     align-items: center; max-width: 420px; }
+  label.consent a { color: #6B57FF; }
   #submit-btn { background: #6B57FF; border-color: #6B57FF; color: white; font-weight: 600; }
   #submit-btn:hover:not(:disabled) { background: #5240e0; border-color: #5240e0; }
+  #byline-hint { font-size: 11px; color: #6f737a; flex-basis: 100%; }
   #pkg { font-size: 11px; color: #6f737a; margin-top: 8px; }
   #pkg code { color: #19191c; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
 </style>
@@ -82,14 +84,18 @@
 <footer>
   <form method="post" action="/submit" id="submit-form">
     <input type="hidden" name="code" id="code-field">
-    <input type="text" name="name" placeholder="Your name" required>
+    <input type="text" name="name" id="name-field" placeholder="Your name" required>
+    <input type="text" name="byline" id="byline-field"
+           placeholder="Byline on the wall" aria-label="Byline on the wall">
     <input type="email" name="email" placeholder="Email" required>
     <label class="consent">
       <input type="checkbox" name="consent" required>
-      I agree that my name, email and artwork may be used for contest and
-      marketing purposes.
+      I accept the <a href="/terms" target="_blank" rel="noopener">terms and
+      conditions</a>.
     </label>
     <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
+    <span id="byline-hint">Your byline is the only thing shown with your piece
+      — edit it to use a handle, or clear it to appear with no name.</span>
   </form>
   <div id="pkg">
     Contract: define exactly one of <code>draw()</code> (static) or
@@ -199,6 +205,16 @@ function setGate(ok, msg) {
   gateMsg.className = ok ? "ok" : "bad";
 }
 setGate(false, "A successful preview is required before you can submit.");
+
+// ---------------------------------------------------------------- byline
+// Credit is the default: the byline tracks the name until the attendee edits
+// it themselves, after which it is theirs — including when they clear it.
+const nameField = $("name-field"), bylineField = $("byline-field");
+let bylineEdited = false;
+bylineField.addEventListener("input", () => { bylineEdited = true; });
+nameField.addEventListener("input", () => {
+  if (!bylineEdited) bylineField.value = nameField.value;
+});
 
 // ------------------------------------------------------------- CodeMirror
 const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");

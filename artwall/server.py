@@ -10,6 +10,7 @@ import io
 import secrets
 import time
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -62,13 +63,38 @@ def _submission_json(row) -> dict:
 
 
 def _piece_json(row) -> dict:
-    """Wall payload: no contact data, no code."""
+    """Wall payload: the byline is the only credit that leaves the server.
+
+    No contact name, no email, no code. An empty byline becomes null rather
+    than a placeholder label, so an attendee who cleared it is unattributed.
+    """
     return {
         "id": row["id"],
         "kind": row["kind"],
         "media_url": _media_url(row),
-        "name": row["name"],
+        "byline": row["byline"] or None,
     }
+
+
+def _waited_for(since: str | None) -> str | None:
+    """How long ago `since` was, phrased for a glance between conversations.
+
+    None in, None out: with an empty queue the moderation page says nothing
+    rather than something that reads like a stalled worker.
+    """
+    if since is None:
+        return None
+    started = datetime.fromisoformat(since)
+    if started.tzinfo is None:                    # pre-tz rows, if any exist
+        started = started.replace(tzinfo=timezone.utc)
+    minutes = max(0, int(
+        (datetime.now(timezone.utc) - started).total_seconds() // 60))
+    if minutes < 1:
+        return "under a minute"
+    if minutes < 60:
+        return f"{minutes} min"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h {minutes} min"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -108,11 +134,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "fps": FPS,
         })
 
+    @app.get("/terms")
+    def terms_page(request: Request):
+        """Served by the application itself so consent survives the marketing
+        site being unreachable, and travels with the booth-laptop fallback."""
+        return templates.TemplateResponse(request, "terms.html", {})
+
     @app.post("/submit")
     def submit(request: Request,
                code: str = Form(...),
                name: str = Form(...),
                email: str = Form(...),
+               byline: str = Form(""),
                consent: bool = Form(False),
                conn=Depends(get_conn)):
         if len(code.encode("utf-8")) > settings.max_code_bytes:
@@ -127,7 +160,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not limiter.allow(ip):
             raise HTTPException(429, "Too many submissions — try again later")
         submission_id = db.create_submission(
-            conn, code, name.strip(), email.strip(), consent)
+            conn, code, name.strip(), email.strip(), consent, byline.strip())
         return RedirectResponse(f"/submission/{submission_id}", status_code=303)
 
     @app.get("/submission/{submission_id}")
@@ -173,12 +206,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/admin", dependencies=[Depends(require_admin)])
     def admin_page(request: Request, conn=Depends(get_conn)):
         pending = db.list_by_status(conn, "rendered")
+        on_wall = db.list_by_status(conn, "approved")
         counts = {status: 0 for status in db.STATUSES}
         for row in db.list_all(conn):
             counts[row["status"]] += 1
         return templates.TemplateResponse(request, "admin.html", {
             "pending": [dict(r) | {"media_url": _media_url(r)} for r in pending],
+            "on_wall": [dict(r) | {"media_url": _media_url(r)} for r in on_wall],
             "counts": counts,
+            "oldest_wait": _waited_for(db.oldest_queued_at(conn)),
         })
 
     @app.post("/admin/submissions/{submission_id}/approve",
@@ -193,14 +229,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.moderate(conn, submission_id, approved=False)
         return RedirectResponse("/admin", status_code=303)
 
+    @app.post("/admin/submissions/{submission_id}/takedown",
+              dependencies=[Depends(require_admin)])
+    def takedown(submission_id: int, conn=Depends(get_conn)):
+        db.take_down(conn, submission_id)
+        return RedirectResponse("/admin", status_code=303)
+
     @app.get("/admin/export.csv", dependencies=[Depends(require_admin)])
     def export_csv(conn=Depends(get_conn)):
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(["id", "name", "email", "consent", "created_at", "status"])
+        writer.writerow(["id", "name", "email", "consent", "created_at",
+                         "status", "byline"])
         for row in db.list_all(conn):
             writer.writerow([row["id"], row["name"], row["email"],
-                             row["consent"], row["created_at"], row["status"]])
+                             row["consent"], row["created_at"], row["status"],
+                             row["byline"]])
         buf.seek(0)
         return StreamingResponse(
             buf, media_type="text/csv",

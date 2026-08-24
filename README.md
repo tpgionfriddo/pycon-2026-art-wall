@@ -42,9 +42,10 @@ ARTWALL_ADMIN_PASSWORD=change-me uv run uvicorn artwall.server:create_app --fact
 uv run python -m artwall.worker   # second terminal (ADR-0002)
 ```
 
-Pages: `/` submit (editor + preview) · `/wall` booth TV · `/piece/{id}`
-single piece · `/submission/{id}` attendee status · `/admin` moderation
-(HTTP Basic, password = `ARTWALL_ADMIN_PASSWORD`).
+Pages: `/` submit (editor + preview) · `/terms` terms and conditions ·
+`/wall` booth TV · `/piece/{id}` single piece · `/submission/{id}` attendee
+status · `/admin` moderation (HTTP Basic, password =
+`ARTWALL_ADMIN_PASSWORD`).
 
 Environment variables:
 
