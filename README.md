@@ -11,20 +11,35 @@ ADRs win where they differ).
 
 ## Running the stack
 
-Prerequisites: [uv](https://docs.astral.sh/uv/), Docker.
+Prerequisites: Docker. (For the development loop below, also
+[uv](https://docs.astral.sh/uv/).)
 
 ```bash
-# 1. install dependencies
+# 1. configure — at minimum set ARTWALL_ADMIN_PASSWORD; the stack refuses
+#    to start without it
+cp .env.example .env
+
+# 2. build the sandbox image (Supported Packages + ffmpeg) in the host
+#    daemon, under the tag the worker starts each job in. This is a
+#    build-only service and never runs.
+docker compose build sandbox-image
+
+# 3. the server and one render worker
+docker compose up -d --build
+```
+
+The database and the rendered media live in `ARTWALL_DATA_DIR` (`./data`),
+bind-mounted into both containers, so they survive `docker compose down`.
+
+### Development loop
+
+The same two processes on the host, without containers:
+
+```bash
 uv sync
-
-# 2. build the sandbox image (Supported Packages + ffmpeg)
 docker build -t artwall-worker -f worker/Dockerfile .
-
-# 3. the web server (submission page, wall, admin)
 ARTWALL_ADMIN_PASSWORD=change-me uv run uvicorn artwall.server:create_app --factory --host 0.0.0.0 --port 8000
-
-# 4. the render worker, in a second terminal (ADR-0002)
-uv run python -m artwall.worker
+uv run python -m artwall.worker   # second terminal (ADR-0002)
 ```
 
 Pages: `/` submit (editor + preview) · `/wall` booth TV · `/piece/{id}`
@@ -39,11 +54,22 @@ Environment variables:
 | `ARTWALL_DATA_DIR` | `data` | SQLite DB + rendered media |
 | `ARTWALL_WORKER_IMAGE` | `artwall-worker` | sandbox image tag |
 | `ARTWALL_SCRATCH_DIR` | *(unset — system temp)* | base for the worker's per-job scratch |
+| `ARTWALL_PORT` | `8000` | host port the stack publishes |
+| `ARTWALL_DOCKER_SOCK` | `/var/run/docker.sock` | host daemon socket given to the worker |
+
+Under Compose these come from `.env` (see `.env.example`), with two caveats.
+`ARTWALL_PORT` and `ARTWALL_DOCKER_SOCK` are Compose's alone and mean nothing
+to the code. And `ARTWALL_DATA_DIR` there names the *host* directory to
+bind-mount; inside both containers the path is always `/data`, which is what
+the application reads.
 
 `ARTWALL_SCRATCH_DIR` only matters once the worker itself runs in a
 container, where it must be an absolute path bind-mounted identically inside
 and outside — see `check_scratch_base` in `artwall/worker.py`. The worker
-refuses to start on a base that cannot hold.
+refuses to start on a base that cannot hold. `compose.yaml` bind-mounts that
+one variable onto itself for exactly this reason. Docker creates the directory
+on first `up` if it is missing, owned by root on Linux; nothing but the worker
+writes there, so that is left alone.
 
 The submission page needs internet (Pyodide + CodeMirror come from CDNs) —
 see ADR-0001/ADR-0004.
@@ -55,6 +81,9 @@ uv run pytest            # server/db guards run everywhere;
                          # pipeline tests need Docker + the artwall-worker image
 ```
 
+The stack itself is deliberately not covered here — it is verified by the
+pre-flight checklist instead.
+
 ## Samples
 
 `samples/` holds contract examples (`draw()` static, `draw(t)` animated) and
@@ -64,10 +93,13 @@ it was dropped from the contest entirely (ADR-0001).
 
 ## Layout
 
-- `artwall/` — `server` (FastAPI), `worker` (host-side job runner),
+- `artwall/` — `server` (FastAPI), `worker` (claims jobs and drives the host
+  Docker daemon),
   `db` (SQLite = the job queue), `config`, `templates/`,
   `static/` (committed page assets — the wall logo)
 - `worker/` — sandbox `Dockerfile` + `render_job.py` (in-container harness)
+- `Dockerfile`, `compose.yaml`, `.env.example` — the application image and
+  the stack that runs it
 - `prototypes/` — throwaway Pyodide feasibility spike (superseded by `/`)
 
 ## Before the event (blocking, MVP plan)

@@ -1,8 +1,13 @@
-"""Render worker (ADR-0002): a host-side process that polls SQLite, claims
-one queued job at a time and runs it in a short-lived hardened container.
+"""Render worker (ADR-0002): polls SQLite, claims one queued job at a time and
+runs it in a short-lived hardened container.
 
-Run: uv run python -m artwall.worker
-Requires the sandbox image: docker build -t artwall-worker -f worker/Dockerfile .
+The daemon it drives is always the host's, whether this process runs on the
+host or in a container of its own — hence `check_scratch_base`, which keeps
+the two views of a path in step. ADR-0002 describes only the host-side shape;
+the containerised one has no decision record of its own yet.
+
+Run: uv run python -m artwall.worker  (or `docker compose up worker`)
+Requires the sandbox image: docker compose build sandbox-image
 """
 import json
 import shutil

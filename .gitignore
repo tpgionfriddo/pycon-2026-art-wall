@@ -15,3 +15,6 @@ data/
 .idea/
 # Local toolchain pin; nothing in this project uses the JVM.
 .sdkmanrc
+
+# Local stack configuration; holds the moderator password.
+.env
