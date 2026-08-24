@@ -24,7 +24,7 @@ This repo is **single-context**:
 │   ├── 0004-cloud-vps-hosting.md
 │   ├── 0005-wall-tiles-fill-the-screen.md
 │   └── 0006-jetbrains-branded-light-theme.md
-├── artwall/                           ← server, worker, db, config, templates
+├── artwall/                           ← server, worker, db, config, templates, static
 └── worker/                            ← sandbox Dockerfile + render harness
 ```
 

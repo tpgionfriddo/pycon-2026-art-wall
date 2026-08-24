@@ -59,7 +59,8 @@ it was dropped from the contest entirely (ADR-0001).
 ## Layout
 
 - `artwall/` — `server` (FastAPI), `worker` (host-side job runner),
-  `db` (SQLite = the job queue), `config`, `templates/`
+  `db` (SQLite = the job queue), `config`, `templates/`,
+  `static/` (committed page assets — the wall logo)
 - `worker/` — sandbox `Dockerfile` + `render_job.py` (in-container harness)
 - `prototypes/` — throwaway Pyodide feasibility spike (superseded by `/`)
 

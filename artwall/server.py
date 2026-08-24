@@ -22,6 +22,9 @@ from . import db
 from .config import FPS, FRAMES, SUPPORTED_PACKAGES, Settings
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+# Committed page assets (the wall logo). Kept apart from the rendered-media
+# mount, which serves untracked runtime state (ADR-0006).
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 class RateLimiter:
@@ -75,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Code Art Wall")
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     limiter = RateLimiter(settings.rate_limit_max, settings.rate_limit_window_s)
     security = HTTPBasic()
