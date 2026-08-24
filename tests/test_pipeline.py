@@ -22,8 +22,12 @@ IMAGE = "artwall-worker"
 SAMPLES = {
     "flow_field.py": "static",
     "circle_mosaic.py": "static",
+    "adeptask_logo.py": "static",
     "plasma_shader.py": "animated",
     "torus_wireframe.py": "animated",
+    "adeptask_logo_ish.py": "animated",
+    "neon_cat.py": "animated",
+    "stick_dance.py": "animated",
 }
 
 
@@ -83,7 +87,7 @@ def test_sample_renders(env, sample, kind):
             assert img.format == "PNG"
             assert img.width <= STATIC_BOX and img.height <= STATIC_BOX
             assert img.mode == "RGBA"
-            # both static samples leave their corners unpainted
+            # every static sample leaves its corners unpainted
             assert img.getpixel((0, 0))[3] == 0
     else:
         assert media.suffix == ".webm"

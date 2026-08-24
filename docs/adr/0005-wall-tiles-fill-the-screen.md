@@ -15,6 +15,6 @@ minimum sizes, which left a nearly empty wall looking sparse at the booth.
   plan §3), so near-fullscreen tiles are upscaled in the browser; the
   resulting softness is explicitly accepted.
 - "Nothing is ever hidden" is kept exactly: the page never scrolls; with
-  hundreds of pieces the tiles become thumbnail-sized.
+  hundreds of pieces the tiles become very small.
 - Tile size changes animate (~0.5 s CSS transition) when a piece lands or
   the window resizes, so the booth TV reflows gracefully.

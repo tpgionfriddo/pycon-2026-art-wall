@@ -34,7 +34,7 @@ pipeline, so the code must follow the contract exactly.
   functions of `t` (e.g. phases like `2 * numpy.pi * t`, or integer
   multiples of full rotations) — never with unbounded time.
 
-## Allowed packages (nothing else)
+## Supported Packages (nothing else)
 
 `numpy`, `matplotlib`, `Pillow` (PIL), `pandas`, `shapely`, `scipy`,
 `colour`, `trimesh`, `svgpathtools`
@@ -62,7 +62,7 @@ or anything else.
 - Transparent backgrounds are supported and encouraged — pieces float on
   the wall. With matplotlib set `fig.patch.set_facecolor("none")` and
   `ax.set_facecolor("none")`; with numpy/PIL return an RGBA array/image
-  with alpha 0 where there is no artwork. An opaque background is also
+  with alpha 0 where the piece paints nothing. An opaque background is also
   fine if the design calls for it.
 - With matplotlib: hide axes (`ax.axis("off")`), fix limits explicitly
   (essential for animation so the view doesn't jitter between frames),

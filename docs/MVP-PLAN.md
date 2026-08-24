@@ -67,8 +67,9 @@ Vocabulary: see [CONTEXT.md](../CONTEXT.md). Key decisions with rationale:
   the page never scrolls, nothing is ever hidden or rotated out (ADR-0005).
   Size changes animate (~0.5 s).
 - `<img>` for static, muted autoplaying looping `<video>` for animated.
-- All five pages share the JetBrains-branded light theme (ADR-0006):
-  light surfaces, logo-gradient accents, JetBrains Mono for headings/code.
+- All five pages share the JetBrains branding — logo-gradient accents and
+  JetBrains Mono for headings/code. Submit, status, piece, and admin use
+  light surfaces; the wall alone uses a dark ground (ADR-0006 as amended).
 
 ## 5. Hosting (see ADR-0004)
 
