@@ -38,6 +38,12 @@ Environment variables:
 | `ARTWALL_ADMIN_PASSWORD` | *(unset — admin locked)* | shared moderator password |
 | `ARTWALL_DATA_DIR` | `data` | SQLite DB + rendered media |
 | `ARTWALL_WORKER_IMAGE` | `artwall-worker` | sandbox image tag |
+| `ARTWALL_SCRATCH_DIR` | *(unset — system temp)* | base for the worker's per-job scratch |
+
+`ARTWALL_SCRATCH_DIR` only matters once the worker itself runs in a
+container, where it must be an absolute path bind-mounted identically inside
+and outside — see `check_scratch_base` in `artwall/worker.py`. The worker
+refuses to start on a base that cannot hold.
 
 The submission page needs internet (Pyodide + CodeMirror come from CDNs) —
 see ADR-0001/ADR-0004.

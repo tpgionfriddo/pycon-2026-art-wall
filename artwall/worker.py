@@ -11,6 +11,8 @@ import sys
 import tempfile
 import time
 import traceback
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import db
@@ -28,6 +30,48 @@ class RenderError(Exception):
     """A job failed inside (or around) the sandbox; message goes to the row."""
 
 
+class ScratchBaseError(Exception):
+    """The configured scratch base cannot mean to the daemon what it means
+    here, so the worker must not start."""
+
+
+def check_scratch_base(settings: Settings) -> None:
+    """Refuse a scratch base the Docker daemon would read as something else.
+
+    Per-job scratch is handed to the daemon as a bind-mount source, and the
+    daemon resolves those on the host — not in whatever filesystem this
+    process sees. A relative source is read as a named volume, and an
+    absolute one absent from the host is created there empty and mounted over
+    the submission. Both fail every render in a way that reads like broken
+    attendee code, so a base that is not an existing absolute directory has
+    to stop the worker instead of being created here.
+    """
+    base = settings.scratch_dir
+    if base is None:
+        return
+    if not base.is_absolute():
+        raise ScratchBaseError(
+            f"the scratch base {base} is relative; the Docker daemon would "
+            f"read it as a named volume. Set ARTWALL_SCRATCH_DIR to an "
+            f"absolute path.")
+    if not base.is_dir():
+        raise ScratchBaseError(
+            f"the scratch base {base} is not a directory. It must exist at "
+            f"this exact path on the Docker host too, so a containerised "
+            f"worker has to bind-mount it at the same absolute path.")
+
+
+@contextmanager
+def job_scratch(settings: Settings) -> Iterator[Path]:
+    """A scratch directory for one job, removed when the job finishes.
+
+    Built under the configured scratch base (`check_scratch_base`), or in the
+    system temporary directory when there is none, as for a host-side worker.
+    """
+    with tempfile.TemporaryDirectory(dir=settings.scratch_dir) as td:
+        yield Path(td)
+
+
 def run_container(code: str, out_dir: Path, settings: Settings,
                   job_id: int) -> tuple[str, str]:
     """One hardened `docker run` per job; the 60 s kill is enforced host-side.
@@ -35,8 +79,8 @@ def run_container(code: str, out_dir: Path, settings: Settings,
     Returns the validated (kind, media filename) the sandbox produced.
     """
     container = f"artwall-job-{job_id}"
-    with tempfile.TemporaryDirectory() as td:
-        src = Path(td) / "submission.py"
+    with job_scratch(settings) as td:
+        src = td / "submission.py"
         src.write_text(code)
         cmd = ["docker", "run", "--rm", "--name", container, *DOCKER_FLAGS,
                "-v", f"{src}:/job/submission.py:ro",
@@ -91,8 +135,7 @@ def validate_media(result: dict) -> tuple[str, str]:
 def render_submission(conn, settings: Settings, row) -> None:
     """Render one claimed job and publish its media."""
     job_id = row["id"]
-    with tempfile.TemporaryDirectory() as td:
-        out_dir = Path(td)
+    with job_scratch(settings) as out_dir:
         kind, media = run_container(row["code"], out_dir, settings, job_id)
         source = out_dir / media
         # The name is the harness's, but the file behind it is the
@@ -150,6 +193,10 @@ def main() -> None:
     sys.stdout.reconfigure(errors="replace")
     sys.stderr.reconfigure(errors="replace")
     settings = Settings.from_env()
+    try:
+        check_scratch_base(settings)
+    except ScratchBaseError as exc:
+        sys.exit(f"[worker] {exc}")
     conn = db.connect(settings.db_path)
     requeued = db.requeue_stale_rendering(conn)
     if requeued:

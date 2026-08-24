@@ -35,6 +35,10 @@ class Settings:
     worker_image: str = "artwall-worker"
     render_timeout_s: int = 60
     poll_interval_s: float = 2.0
+    # The base the render worker builds each job's scratch under. Unset means
+    # the system temporary directory; see `artwall.worker.check_scratch_base`
+    # for why a containerised worker has to be told somewhere else.
+    scratch_dir: Path | None = None
 
     @property
     def db_path(self) -> Path:
@@ -46,8 +50,10 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        scratch = os.environ.get("ARTWALL_SCRATCH_DIR", "")
         return cls(
             data_dir=Path(os.environ.get("ARTWALL_DATA_DIR", "data")),
             admin_password=os.environ.get("ARTWALL_ADMIN_PASSWORD", ""),
             worker_image=os.environ.get("ARTWALL_WORKER_IMAGE", "artwall-worker"),
+            scratch_dir=Path(scratch) if scratch else None,
         )

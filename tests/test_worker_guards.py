@@ -5,6 +5,9 @@ that whole module skips when the sandbox image is unavailable — and a guard
 that only runs where Docker does is a guard that stops being checked.
 """
 import json
+import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -125,3 +128,82 @@ def test_loop_survives_a_failure_while_recording_a_failure(env, monkeypatch):
     assert db.get_submission(conn, stuck)["status"] == "rendering"
     monkeypatch.undo()
     assert db.get_submission(conn, next_up)["status"] == "queued"
+
+
+# --- configurable scratch area (issue 04) ------------------------------
+
+class FakeDockerRun:
+    """Stand-in for `docker run`, recording the bind-mount sources it is
+    given — those are what the Docker daemon resolves on the host, so they
+    are what a containerised worker has to get right."""
+
+    def __init__(self):
+        self.source: Path | None = None
+        self.out_dir: Path | None = None
+
+    def __call__(self, cmd, **kwargs):
+        self.source, self.out_dir = [
+            Path(cmd[i + 1].split(":")[0])
+            for i, arg in enumerate(cmd) if arg == "-v"
+        ]
+        (self.out_dir / "piece.png").write_bytes(b"not really a png")
+        (self.out_dir / "result.json").write_text(
+            json.dumps({"kind": "static", "media": "piece.png"}))
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+
+@pytest.fixture
+def fake_docker(monkeypatch) -> FakeDockerRun:
+    fake = FakeDockerRun()
+    monkeypatch.setattr(worker.subprocess, "run", fake)
+    return fake
+
+
+def test_scratch_paths_live_under_a_configured_base(env, fake_docker, tmp_path):
+    conn, settings = env
+    base = tmp_path / "scratch"
+    base.mkdir()
+    settings.scratch_dir = base
+    queue(conn)
+
+    assert worker.process_one(conn, settings) is True
+
+    assert base in fake_docker.source.parents, fake_docker.source
+    assert base in fake_docker.out_dir.parents, fake_docker.out_dir
+    assert list(base.iterdir()) == []    # per-job scratch cleaned up
+
+
+def test_scratch_defaults_to_the_system_temporary_directory(env, fake_docker):
+    conn, settings = env                 # scratch_dir left unset
+    queue(conn)
+
+    assert worker.process_one(conn, settings) is True
+
+    system_tmp = Path(tempfile.gettempdir()).resolve()
+    for path in (fake_docker.source, fake_docker.out_dir):
+        assert system_tmp in path.resolve().parents, path
+
+
+def test_scratch_base_is_configured_through_the_environment(monkeypatch):
+    monkeypatch.delenv("ARTWALL_SCRATCH_DIR", raising=False)
+    assert Settings.from_env().scratch_dir is None
+
+    monkeypatch.setenv("ARTWALL_SCRATCH_DIR", "/srv/artwall/scratch")
+    assert Settings.from_env().scratch_dir == Path("/srv/artwall/scratch")
+
+
+def test_a_base_the_daemon_would_misread_stops_the_worker(tmp_path):
+    """A relative base is a named volume to the daemon, and an absolute one
+    it cannot find on the host is created there empty and mounted over the
+    submission. Both have to be refused before any attendee pays for it."""
+    with pytest.raises(worker.ScratchBaseError, match="named volume"):
+        worker.check_scratch_base(Settings(scratch_dir=Path("scratch")))
+
+    missing = tmp_path / "never-mounted"
+    with pytest.raises(worker.ScratchBaseError, match="not a directory"):
+        worker.check_scratch_base(Settings(scratch_dir=missing))
+
+
+def test_an_absent_or_mounted_base_is_accepted(tmp_path):
+    assert worker.check_scratch_base(Settings()) is None
+    assert worker.check_scratch_base(Settings(scratch_dir=tmp_path)) is None

@@ -199,3 +199,21 @@ def test_media_symlinked_out_of_the_sandbox_is_not_published(env):
     assert "not a regular file" in row["error"]
     assert row["media_path"] is None
     assert not settings.media_dir.exists() or not any(settings.media_dir.iterdir())
+
+
+# --- configurable scratch area (issue 04) ------------------------------
+
+def test_render_from_a_configured_scratch_base(env, tmp_path):
+    """The whole pipeline again with the scratch base set rather than
+    defaulting: the mounts the daemon resolves come out of that base, and the
+    per-job directories are gone afterwards."""
+    conn, settings = env
+    base = tmp_path / "scratch"
+    base.mkdir()
+    settings.scratch_dir = base
+
+    row = _render(conn, settings, (SAMPLES_DIR / "flow_field.py").read_text())
+
+    assert row["status"] == "rendered", row["error"]
+    assert (settings.media_dir / row["media_path"]).exists()
+    assert list(base.iterdir()) == []
