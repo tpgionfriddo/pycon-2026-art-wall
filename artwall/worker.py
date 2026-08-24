@@ -4,7 +4,7 @@ runs it in a short-lived hardened container.
 The daemon it drives is always the host's, whether this process runs on the
 host or in a container of its own — hence `check_scratch_base`, which keeps
 the two views of a path in step. ADR-0002 describes only the host-side shape;
-the containerised one has no decision record of its own yet.
+ADR-0007 records the containerised one.
 
 Run: uv run python -m artwall.worker  (or `docker compose up worker`)
 Requires the sandbox image: docker compose build sandbox-image

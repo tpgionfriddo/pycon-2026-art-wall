@@ -5,7 +5,8 @@ browser editor with a **mandatory live preview** (Pyodide), submit it, a
 sandboxed Docker worker renders it server-side, a human moderator approves
 it, and the piece appears on the big-screen **wall**.
 
-Docs: [MVP plan](docs/MVP-PLAN.md) · [decision records](docs/adr/) ·
+Docs: **[runbook](docs/RUNBOOK.md)** (symptom → action, for the booth) ·
+[MVP plan](docs/MVP-PLAN.md) · [decision records](docs/adr/) ·
 [vocabulary](CONTEXT.md). Spec background: `AGENT_BRIEF.md` (the plan and
 ADRs win where they differ).
 
@@ -94,6 +95,11 @@ this public repository, so that a fix can be shipped from a phone tether at
 the booth. Nothing about the stack differs from the laptop one except the
 values it is given.
 
+ADR-0007 records why the deployment looks the way it does — the containerised
+worker driving the *host* Docker daemon, the same-path scratch mount, the
+proxy's baked-in configuration — and is worth reading before changing any of
+it, because each of those fails silently when "fixed".
+
 **Before the stack exists.** Lower the TTL on the DNS record a good while
 before pointing it at the VPS — a mistake then costs minutes rather than
 hours. Certificate issuance needs the name to resolve to the box and ports
@@ -157,6 +163,14 @@ image, which is behind the profile and named explicitly, as above.
 certificates, because they live in a named volume. Neither is removed by a
 stack update; only deleting the stack *and* its volumes would take the
 certificates, and nothing but `rm` would take the database.
+
+## Operating it
+
+[`docs/RUNBOOK.md`](docs/RUNBOOK.md) is one page of symptom → action for
+booth staff: a queue that stopped moving, every submission failing, a blank
+or stuttering wall, taking a piece off the wall, restarting a container,
+restoring the database, and exporting the contact list — plus which failures
+are safe to ignore until after the event.
 
 ## Tests
 
