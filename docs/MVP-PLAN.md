@@ -45,8 +45,14 @@ Vocabulary: see [CONTEXT.md](../CONTEXT.md). Key decisions with rationale:
 - Separate host-side process (`uv run python -m artwall.worker`) polls
   SQLite, claims one `queued` job at a time.
 - Per job: `docker run --rm --network none --memory 1g --cpus 1
-  --pids-limit 128`, code mounted read-only, **60 s kill enforced from the
-  host side**; writes media to a shared directory, updates the row.
+  --pids-limit 128 --cap-drop ALL --security-opt no-new-privileges`, code
+  mounted read-only, **60 s kill enforced from the host side**; writes media
+  to a shared directory, updates the row. The root filesystem stays writable
+  on purpose — charting writes to a temporary directory.
+- The sandbox result is untrusted: the submission shares the output directory
+  with the harness, so only the media filenames the harness may produce are
+  accepted, and any unexpected failure fails that submission alone rather
+  than the worker loop.
 - Harness inside the container reuses `normalize()` from
   `samples/preview.py`; matplotlib forced to Agg.
 - Output spec:

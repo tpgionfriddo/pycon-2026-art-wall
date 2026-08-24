@@ -7,15 +7,21 @@ Requires the sandbox image: docker build -t artwall-worker -f worker/Dockerfile 
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
+import traceback
 from pathlib import Path
 
 from . import db
-from .config import Settings
+from .config import MEDIA_NAMES, Settings
 
+# A read-only root filesystem is deliberately absent: charting writes to a
+# temporary directory, and there is no time before the event to verify that
+# against every Supported Package (ADR-0001).
 DOCKER_FLAGS = ["--network", "none", "--memory", "1g", "--cpus", "1",
-                "--pids-limit", "128"]
+                "--pids-limit", "128", "--cap-drop", "ALL",
+                "--security-opt", "no-new-privileges"]
 
 
 class RenderError(Exception):
@@ -23,8 +29,11 @@ class RenderError(Exception):
 
 
 def run_container(code: str, out_dir: Path, settings: Settings,
-                  job_id: int) -> dict:
-    """One hardened `docker run` per job; the 60 s kill is enforced host-side."""
+                  job_id: int) -> tuple[str, str]:
+    """One hardened `docker run` per job; the 60 s kill is enforced host-side.
+
+    Returns the validated (kind, media filename) the sandbox produced.
+    """
     container = f"artwall-job-{job_id}"
     with tempfile.TemporaryDirectory() as td:
         src = Path(td) / "submission.py"
@@ -42,15 +51,59 @@ def run_container(code: str, out_dir: Path, settings: Settings,
             raise RenderError(
                 f"render exceeded {settings.render_timeout_s} s and was killed")
 
+    return read_result(out_dir, proc.stderr or "")
+
+
+def read_result(out_dir: Path, stderr: str) -> tuple[str, str]:
+    """Read the sandbox's result.json into a validated (kind, media filename).
+
+    Submission code shares the output directory with the harness and can
+    rewrite result.json, so nothing found here is believed on sight.
+    """
     result_file = out_dir / "result.json"
     if not result_file.exists():
-        detail = (proc.stderr or "").strip()[-2000:]
+        detail = stderr.strip()[-2000:]
         raise RenderError("sandbox produced no result"
                           + (f":\n{detail}" if detail else ""))
-    result = json.loads(result_file.read_text())
+    try:
+        result = json.loads(result_file.read_text())
+    except (OSError, ValueError) as exc:
+        raise RenderError(f"sandbox result was unreadable: {exc}")
+    if not isinstance(result, dict):
+        raise RenderError("sandbox result was not an object")
     if result.get("error"):
-        raise RenderError(result["error"])
-    return result
+        raise RenderError(str(result["error"])[-2000:])
+    return validate_media(result)
+
+
+def validate_media(result: dict) -> tuple[str, str]:
+    """Reduce a sandbox result to the (kind, media filename) it may name."""
+    kind = result.get("kind")
+    if not isinstance(kind, str) or kind not in MEDIA_NAMES:
+        raise RenderError(f"sandbox reported an unknown kind: {kind!r}")
+    expected = MEDIA_NAMES[kind]
+    if result.get("media") != expected:
+        raise RenderError(f"sandbox named media {result.get('media')!r}, "
+                          f"expected {expected!r}")
+    return kind, expected
+
+
+def render_submission(conn, settings: Settings, row) -> None:
+    """Render one claimed job and publish its media."""
+    job_id = row["id"]
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = Path(td)
+        kind, media = run_container(row["code"], out_dir, settings, job_id)
+        source = out_dir / media
+        # The name is the harness's, but the file behind it is the
+        # submission's: a symlink here would move a host file onto the wall.
+        if source.is_symlink() or not source.is_file():
+            raise RenderError(f"sandbox media {media} is not a regular file")
+        media_name = f"{job_id}{Path(media).suffix}"
+        settings.media_dir.mkdir(parents=True, exist_ok=True)
+        shutil.move(source, settings.media_dir / media_name)
+        db.mark_rendered(conn, job_id, kind, media_name)
+        print(f"[worker] #{job_id} rendered -> {media_name}", flush=True)
 
 
 def process_one(conn, settings: Settings) -> bool:
@@ -60,23 +113,42 @@ def process_one(conn, settings: Settings) -> bool:
         return False
     job_id = row["id"]
     print(f"[worker] rendering #{job_id} by {row['name']}", flush=True)
-    with tempfile.TemporaryDirectory() as td:
-        out_dir = Path(td)
-        try:
-            result = run_container(row["code"], out_dir, settings, job_id)
-            suffix = "png" if result["kind"] == "static" else "webm"
-            media_name = f"{job_id}.{suffix}"
-            settings.media_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(out_dir / result["media"], settings.media_dir / media_name)
-            db.mark_rendered(conn, job_id, result["kind"], media_name)
-            print(f"[worker] #{job_id} rendered -> {media_name}", flush=True)
-        except RenderError as exc:
-            db.mark_failed(conn, job_id, str(exc))
-            print(f"[worker] #{job_id} failed: {exc}", flush=True)
+    try:
+        render_submission(conn, settings, row)
+    except RenderError as exc:
+        db.mark_failed(conn, job_id, str(exc))
+        print(f"[worker] #{job_id} failed: {exc}", flush=True)
+    except Exception:
+        # A hostile submission must fail alone. Letting anything else out of
+        # here kills the loop, and the stale-job requeue hands the same job
+        # straight back on restart — a crash-loop that stops the wall.
+        db.mark_failed(conn, job_id, "the render worker hit an internal "
+                                     "error and skipped this piece")
+        print(f"[worker] #{job_id} failed unexpectedly:\n"
+              f"{traceback.format_exc(limit=8)}", flush=True)
     return True
 
 
+def poll_once(conn, settings: Settings) -> bool:
+    """`process_one` behind a last-resort guard.
+
+    Even failing to record a failure must not stop the loop: the job is left
+    `rendering`, so it is skipped rather than requeued, and the next queued
+    submission still renders.
+    """
+    try:
+        return process_one(conn, settings)
+    except Exception:
+        print(f"[worker] recovered from a fatal error in the loop:\n"
+              f"{traceback.format_exc(limit=8)}", flush=True)
+        return False
+
+
 def main() -> None:
+    # Submission names and tracebacks are echoed here; a console that cannot
+    # encode them must not take the worker down with it.
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
     settings = Settings.from_env()
     conn = db.connect(settings.db_path)
     requeued = db.requeue_stale_rendering(conn)
@@ -86,7 +158,7 @@ def main() -> None:
     print(f"[worker] polling {settings.db_path} "
           f"(image: {settings.worker_image})", flush=True)
     while True:
-        if not process_one(conn, settings):
+        if not poll_once(conn, settings):
             time.sleep(settings.poll_interval_s)
 
 

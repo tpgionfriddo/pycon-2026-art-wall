@@ -117,3 +117,85 @@ def test_infinite_loop_killed_from_host(env):
     row = _render(conn, settings, "while True:\n    pass\n")
     assert row["status"] == "failed"
     assert "killed" in row["error"]
+
+
+# --- hostile submissions (issue 03) ------------------------------------
+
+TRIVIAL_DRAW = "def draw():\n    return [[0]]\n"
+
+
+def _hijack_result(payload: str) -> str:
+    """Submission code that hands the host `payload` as its sandbox result.
+
+    The harness writes result.json as it finishes, so the overwrite has to
+    happen on the way out — after main() has had the last word.
+    """
+    return (f"import atexit, pathlib\n"
+            f"atexit.register(lambda: "
+            f"pathlib.Path('/out/result.json').write_text({payload!r}))\n"
+            + TRIVIAL_DRAW)
+
+
+MALFORMED_RESULT = _hijack_result("{ not json at all")
+PATH_ESCAPE_RESULT = _hijack_result('{"kind": "static", "media": "/etc/hostname"}')
+
+
+def test_malformed_result_marks_failed(env):
+    conn, settings = env
+    row = _render(conn, settings, MALFORMED_RESULT)
+    assert row["status"] == "failed"
+    assert "unreadable" in row["error"]
+    assert row["media_path"] is None
+
+
+def test_result_naming_a_path_outside_the_sandbox_moves_nothing(env):
+    conn, settings = env
+    escape = '{"kind": "static", "media": "../../../../etc/hostname"}'
+    row = _render(conn, settings, _hijack_result(escape))
+    assert row["status"] == "failed"
+    assert "expected 'piece.png'" in row["error"]
+    assert row["media_path"] is None
+    assert not settings.media_dir.exists() or not any(settings.media_dir.iterdir())
+
+
+@pytest.mark.parametrize("hostile", [MALFORMED_RESULT, PATH_ESCAPE_RESULT],
+                         ids=["malformed", "path-escape"])
+def test_queue_keeps_moving_after_a_hostile_submission(env, hostile):
+    conn, settings = env
+    assert _render(conn, settings, hostile)["status"] == "failed"
+    assert _render(conn, settings, TRIVIAL_DRAW)["status"] == "rendered"
+
+
+def test_job_container_drops_capabilities_and_privilege_escalation(env):
+    conn, settings = env
+    probe = (
+        "import re\n"
+        "from pathlib import Path\n"
+        "status = Path('/proc/self/status').read_text()\n"
+        "caps = re.search(r'^CapEff:\\s+(\\S+)', status, re.M).group(1)\n"
+        "nnp = re.search(r'^NoNewPrivs:\\s+(\\S+)', status, re.M).group(1)\n"
+        "assert int(caps, 16) == 0, f'CapEff={caps}'\n"
+        "assert nnp == '1', f'NoNewPrivs={nnp}'\n"
+        + TRIVIAL_DRAW
+    )
+    assert _render(conn, settings, probe)["status"] == "rendered"
+
+
+def test_media_symlinked_out_of_the_sandbox_is_not_published(env):
+    """The result may name only `piece.png` — but the file behind that name
+    is the submission's to create, and it can be a symlink to a host file."""
+    conn, settings = env
+    row = _render(conn, settings, (
+        "import atexit, os, pathlib\n"
+        "def hijack():\n"
+        "    p = pathlib.Path('/out/piece.png')\n"
+        "    if p.exists() or p.is_symlink():\n"
+        "        p.unlink()\n"
+        "    os.symlink('/etc/hostname', '/out/piece.png')\n"
+        "atexit.register(hijack)\n"
+        + TRIVIAL_DRAW
+    ))
+    assert row["status"] == "failed"
+    assert "not a regular file" in row["error"]
+    assert row["media_path"] is None
+    assert not settings.media_dir.exists() or not any(settings.media_dir.iterdir())

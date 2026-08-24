@@ -4,7 +4,8 @@ There is no message broker or task-queue library. `POST /submit` inserts a
 submission row with status `queued`; a separate host-side worker process
 (`uv run`, long-lived) polls SQLite, claims one job at a time, and runs a
 short-lived hardened container per job (`docker run --rm --network none`,
-memory/CPU/pids limits, ~60 s host-side kill). The worker writes the rendered
+memory/CPU/pids limits, all capabilities dropped, no privilege escalation,
+~60 s host-side kill). The worker writes the rendered
 media to a shared directory and updates the row.
 
 Chosen over Celery/Redis (needless infrastructure for a single-booth,

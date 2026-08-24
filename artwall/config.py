@@ -18,6 +18,11 @@ FRAMES, FPS = 150, 30          # 5 s perfect loop
 VIDEO_BOX = 512                # animated pieces fit in 512×512
 STATIC_BOX = 1024              # static pieces downscaled to fit 1024×1024
 
+# The only media filenames the harness may produce, per kind — keep identical
+# to what worker/render_job.py writes. The worker moves a file by the name the
+# harness hands back, so a submission does not get to choose it.
+MEDIA_NAMES = {"static": "piece.png", "animated": "piece.webm"}
+
 
 @dataclass
 class Settings:
