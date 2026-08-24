@@ -24,9 +24,14 @@ cp .env.example .env
 #    build-only service and never runs.
 docker compose build sandbox-image
 
-# 3. the server and one render worker
+# 3. the reverse proxy, the server, and one render worker
 docker compose up -d --build
 ```
+
+Everything is served through the proxy, on the ports it publishes —
+`http://localhost:8000` with the values `.env.example` ships, or the same port
+on the machine's address from another device. The server publishes no port of
+its own, so the proxy is the only way in.
 
 The database and the rendered media live in `ARTWALL_DATA_DIR` (`./data`),
 bind-mounted into both containers, so they survive `docker compose down`.
@@ -55,14 +60,19 @@ Environment variables:
 | `ARTWALL_DATA_DIR` | `data` | SQLite DB + rendered media |
 | `ARTWALL_WORKER_IMAGE` | `artwall-worker` | sandbox image tag |
 | `ARTWALL_SCRATCH_DIR` | *(unset — system temp)* | base for the worker's per-job scratch |
-| `ARTWALL_PORT` | `8000` | host port the stack publishes |
+| `ARTWALL_SITE_ADDRESS` | `:80` | what the proxy answers to; a bare domain turns TLS on |
+| `ARTWALL_HTTP_PORT` | `80` | host port for the proxy's HTTP listener |
+| `ARTWALL_HTTPS_PORT` | `443` | host port for the proxy's HTTPS listener |
 | `ARTWALL_DOCKER_SOCK` | `/var/run/docker.sock` | host daemon socket given to the worker |
 
+`.env.example` overrides the two ports to 8000 and 8443, because a laptop
+usually has something on 80 already. The VPS wants the defaults.
+
 Under Compose these come from `.env` (see `.env.example`), with two caveats.
-`ARTWALL_PORT` and `ARTWALL_DOCKER_SOCK` are Compose's alone and mean nothing
-to the code. And `ARTWALL_DATA_DIR` there names the *host* directory to
-bind-mount; inside both containers the path is always `/data`, which is what
-the application reads.
+The last four are Compose's and the proxy's alone and mean nothing to the
+code. And `ARTWALL_DATA_DIR` there names the *host* directory to bind-mount;
+inside both containers the path is always `/data`, which is what the
+application reads.
 
 `ARTWALL_SCRATCH_DIR` only matters once the worker itself runs in a
 container, where it must be an absolute path bind-mounted identically inside
@@ -74,6 +84,79 @@ writes there, so that is left alone.
 
 The submission page needs internet (Pyodide + CodeMirror come from CDNs) —
 see ADR-0001/ADR-0004.
+
+## Deploying to the VPS
+
+Production is a cloud VPS behind a public domain (ADR-0004). The stack is
+deployed there as a
+[Portainer git stack](https://docs.portainer.io/user/docker/stacks/add) from
+this public repository, so that a fix can be shipped from a phone tether at
+the booth. Nothing about the stack differs from the laptop one except the
+values it is given.
+
+**Before the stack exists.** Lower the TTL on the DNS record a good while
+before pointing it at the VPS — a mistake then costs minutes rather than
+hours. Certificate issuance needs the name to resolve to the box and ports
+80 and 443 to be reachable from the internet.
+
+**The stack.** *Stacks → Add stack → Git Repository*, compose path
+`compose.yaml`, and these environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `ARTWALL_ADMIN_PASSWORD` | the moderator password — this is the only place it exists |
+| `ARTWALL_SITE_ADDRESS` | the bare domain, e.g. `artwall.example.com`; this is the switch that turns TLS on |
+| `ARTWALL_DATA_DIR` | an absolute path outside the stack's own directory, e.g. `/srv/artwall/data` |
+
+Leave the two port variables unset. They default to 80 and 443, which is what
+the certificate challenge needs and what a browser will try.
+
+`ARTWALL_DATA_DIR` has to be absolute, and the failure if it is not is silent:
+the daemon resolves bind-mount sources on the host, where the stack's own
+directory does not exist, so a relative path lands somewhere nobody will think
+to look and the database goes with it. The stack bind-mounts nothing else from
+the repository for the same reason — the proxy's configuration is built into
+its image rather than mounted.
+
+**The sandbox image.** The stack cannot build it: `sandbox-image` is a
+build-only service behind a profile nothing enables, so `up` skips it (this is
+deliberate — see the comment in `compose.yaml`). It has to be built once on
+the box, and again whenever `worker/Dockerfile` or the Supported Packages
+change. Either through Portainer, *Images → Build a new image*, naming the
+image `artwall-worker` and building from the repository URL with Dockerfile
+path `worker/Dockerfile` — or over SSH from a clone:
+
+```bash
+git clone https://github.com/tpgionfriddo/pycon-2026-art-wall /srv/artwall/src
+cd /srv/artwall/src
+# the password is irrelevant to a build; Compose only insists on a value
+ARTWALL_ADMIN_PASSWORD=unused docker compose build sandbox-image
+```
+
+**Shipping a change.** Push to `main`, then *Pull and redeploy* on the stack.
+Leave *Re-pull image* off: these images are built on the box, not pulled from
+a registry, and asking for the newest copy of one that exists nowhere fails
+the deployment.
+
+Check that the change actually landed. Portainer does build images from a git
+stack, but it is not an officially supported feature and older versions did
+not rebuild on update. If a redeploy serves the old code, rebuild from the
+clone above and redeploy again — Compose recreates a container whose image
+has changed:
+
+```bash
+cd /srv/artwall/src && git pull
+ARTWALL_ADMIN_PASSWORD=unused docker compose build
+```
+
+That builds the application and proxy images. It does not touch the sandbox
+image, which is behind the profile and named explicitly, as above.
+
+**What survives a redeploy.** The database and the rendered media, because
+`ARTWALL_DATA_DIR` is a host path outside the stack directory. The
+certificates, because they live in a named volume. Neither is removed by a
+stack update; only deleting the stack *and* its volumes would take the
+certificates, and nothing but `rm` would take the database.
 
 ## Tests
 
@@ -99,6 +182,8 @@ it was dropped from the contest entirely (ADR-0001).
   `db` (SQLite = the job queue), `config`, `templates/`,
   `static/` (committed page assets — the wall logo)
 - `worker/` — sandbox `Dockerfile` + `render_job.py` (in-container harness)
+- `proxy/` — the reverse proxy image: `Dockerfile` + the `Caddyfile` that
+  terminates TLS in front of the server
 - `Dockerfile`, `compose.yaml`, `.env.example` — the application image and
   the stack that runs it
 - `prototypes/` — throwaway Pyodide feasibility spike (superseded by `/`)

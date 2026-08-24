@@ -1,10 +1,13 @@
-# The whole stack: the submission server, one render worker, and the sandbox
-# image the worker starts each job in. Identical on the booth laptop and on
-# the VPS (ADR-0004) — everything that differs lives in `.env`.
+# The whole stack: a reverse proxy, the submission server, one render worker,
+# and the sandbox image the worker starts each job in. Identical on the booth
+# laptop and on the VPS (ADR-0004) — everything that differs lives in `.env`
+# locally, and in the Portainer stack's environment variables in production.
 #
 #   cp .env.example .env          # then set ARTWALL_ADMIN_PASSWORD
 #   docker compose build sandbox-image
 #   docker compose up -d --build
+#
+# See README.md, "Deploying to the VPS", for the production side.
 name: artwall
 
 x-app: &app
@@ -30,18 +33,48 @@ services:
     profiles: [build-only]
     pull_policy: build
 
+  # The only service published to the network: it terminates TLS in front of
+  # the server, obtaining and renewing the certificate itself whenever the
+  # site address it is given is a domain rather than a bare port. Its
+  # configuration is baked into its image rather than mounted from here —
+  # see `proxy/Caddyfile`, and `proxy/Dockerfile` for why.
+  proxy:
+    image: artwall-proxy
+    build:
+      context: ./proxy
+    restart: unless-stopped
+    depends_on: [server]
+    environment:
+      ARTWALL_SITE_ADDRESS: ${ARTWALL_SITE_ADDRESS:-:80}
+    ports:
+      - "${ARTWALL_HTTP_PORT:-80}:80"
+      - "${ARTWALL_HTTPS_PORT:-443}:443"
+      # HTTP/3, which Caddy advertises the moment it is serving TLS. Without
+      # the UDP port a phone tries QUIC, fails, and falls back to TCP.
+      - "${ARTWALL_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      # Issued certificates. A named volume rather than a bind mount because
+      # nobody edits these by hand, and losing them on redeploy would mean
+      # re-issuing from Let's Encrypt on every deployment.
+      - caddy-data:/data
+      - caddy-config:/config
+
   server:
     <<: *app
+    # `--proxy-headers` with every source trusted: nothing but the proxy can
+    # reach this port, since the proxy is what publishes ports, and it hands
+    # over an X-Forwarded-For it wrote itself (see `proxy/Caddyfile`).
+    # Without this the rate limit sees the proxy's address for every attendee
+    # and the whole booth shares one bucket.
     command: >
       uvicorn artwall.server:create_app --factory
       --host 0.0.0.0 --port 8000
+      --proxy-headers --forwarded-allow-ips '*'
     environment:
       <<: *app-env
       # Unset locks the admin pages silently, which is only discovered at
       # the moment someone needs to moderate. Fail the stack instead.
       ARTWALL_ADMIN_PASSWORD: ${ARTWALL_ADMIN_PASSWORD:?set it in .env}
-    ports:
-      - "${ARTWALL_PORT:-8000}:8000"
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
 
@@ -61,3 +94,7 @@ services:
       # own. ADR-0002 describes the worker as host-side; this changes that.
       - ${ARTWALL_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
       - ${ARTWALL_SCRATCH_DIR:-/tmp/artwall-scratch}:${ARTWALL_SCRATCH_DIR:-/tmp/artwall-scratch}
+
+volumes:
+  caddy-data:
+  caddy-config:

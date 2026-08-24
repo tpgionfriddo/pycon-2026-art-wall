@@ -1,0 +1,25 @@
+# The stack's reverse proxy. One site address spells both deployments: a bare
+# domain on the VPS, where Caddy obtains and renews the certificate itself,
+# and a bare port on the booth laptop, where there is no domain to certify.
+# `compose.yaml` supplies the value and holds the default.
+#
+#   artwall.example.com   HTTPS, certificate obtained and renewed automatically
+#   :80                   plain HTTP on any hostname — the laptop fallback
+#
+# The laptop value must not name a host. The booth TV reaches the laptop by
+# its address on the venue network (ADR-0004), and a site address of
+# `http://localhost` answers anything addressed otherwise with a blank page.
+
+{$ARTWALL_SITE_ADDRESS} {
+	# The pages and the wall payload are text and the attendee is on mobile
+	# data. Caddy's own default leaves already-compressed media alone.
+	encode zstd gzip
+
+	reverse_proxy server:8000 {
+		# Replace rather than append. The submission rate limit is keyed on
+		# the address uvicorn reads out of this header, and uvicorn takes the
+		# leftmost entry; appending would let an attendee mint a fresh
+		# identity per request by sending an X-Forwarded-For of their own.
+		header_up X-Forwarded-For {remote_host}
+	}
+}
