@@ -10,6 +10,7 @@ import io
 import secrets
 import time
 from collections import defaultdict, deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -95,6 +96,33 @@ def _waited_for(since: str | None) -> str | None:
         return f"{minutes} min"
     hours, minutes = divmod(minutes, 60)
     return f"{hours} h {minutes} min"
+
+
+@dataclass(frozen=True)
+class ModerationState:
+    """What the moderation page shows: its two grids, and its header."""
+    pending: list           # rendered, awaiting the human review
+    on_wall: list           # approved, and a takedown away from leaving
+    counts: dict
+    oldest_wait: str | None
+
+
+def _read_moderation_state(conn) -> ModerationState:
+    """Read what the moderation page shows, in one place.
+
+    The page renders this and the open page's poll re-reads it, so which
+    submissions belong in which grid cannot come out differently depending on
+    which of the two asked.
+    """
+    counts = {status: 0 for status in db.STATUSES}
+    for row in db.list_all(conn):
+        counts[row["status"]] += 1
+    return ModerationState(
+        pending=db.list_by_status(conn, "rendered"),
+        on_wall=db.list_by_status(conn, "approved"),
+        counts=counts,
+        oldest_wait=_waited_for(db.oldest_queued_at(conn)),
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -213,17 +241,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/admin", dependencies=[Depends(require_admin)])
     def admin_page(request: Request, conn=Depends(get_conn)):
-        pending = db.list_by_status(conn, "rendered")
-        on_wall = db.list_by_status(conn, "approved")
-        counts = {status: 0 for status in db.STATUSES}
-        for row in db.list_all(conn):
-            counts[row["status"]] += 1
+        state = _read_moderation_state(conn)
         return templates.TemplateResponse(request, "admin.html", {
-            "pending": [dict(r) | {"media_url": _media_url(r)} for r in pending],
-            "on_wall": [dict(r) | {"media_url": _media_url(r)} for r in on_wall],
-            "counts": counts,
-            "oldest_wait": _waited_for(db.oldest_queued_at(conn)),
+            "pending": [dict(r) | {"media_url": _media_url(r)}
+                        for r in state.pending],
+            "on_wall": [dict(r) | {"media_url": _media_url(r)}
+                        for r in state.on_wall],
+            "counts": state.counts,
+            "oldest_wait": state.oldest_wait,
         })
+
+    @app.get("/admin/api/moderation", dependencies=[Depends(require_admin)])
+    def moderation_json(conn=Depends(get_conn)):
+        """What an open moderation page polls to notice it has gone stale.
+
+        Ids rather than cards: drawing a card needs the server's markup, so the
+        page reloads for that, and this reply is fetched every few seconds for
+        as long as the booth is open.
+        """
+        state = _read_moderation_state(conn)
+        return {
+            "pending": [row["id"] for row in state.pending],
+            "on_wall": [row["id"] for row in state.on_wall],
+            "counts": state.counts,
+            "oldest_wait": state.oldest_wait,
+        }
 
     @app.post("/admin/submissions/{submission_id}/approve",
               dependencies=[Depends(require_admin)])

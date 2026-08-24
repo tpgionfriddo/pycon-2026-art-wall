@@ -308,7 +308,11 @@ Don't spend booth time on any of these.
 - **Soft or slightly blurry tiles** when only a few pieces are up. Pieces
   are rendered no larger than a fixed cap, and the browser scales them up to
   fill the tile without distorting them. Expected (ADR-0005).
-- **The moderation queue not updating on its own.** It never has. Reload it.
+- **The moderation page redrawing itself** while you watch it. It re-reads the
+  queue every few seconds and reloads when a submission arrives.
+- **A "refresh" link in the moderation page's header.** It is holding a reload
+  back rather than moving cards you may be about to click, or closing a source
+  view you are reading. Click it when you are ready.
 - **A "new piece" toast you missed** on the wall. Nothing is lost; the piece
   is on the wall.
 - **A page briefly rendering in the wrong font.** It comes from a CDN over

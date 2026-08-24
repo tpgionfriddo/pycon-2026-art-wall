@@ -18,7 +18,9 @@
     background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #counts { color: #6f737a; font-size: 13px; }
   #oldest { color: #19191c; font-size: 13px; font-weight: 600; }
-  header a { margin-left: auto; color: #6B57FF; font-size: 13px; }
+  header a { color: #6B57FF; font-size: 13px; }
+  header .export { margin-left: auto; }
+  #notice { color: #c81f4d; font-weight: 600; }
   main { padding: 18px; }
   h2 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase;
     letter-spacing: 0.08em; color: #6f737a; font-weight: 600; }
@@ -50,13 +52,19 @@
 <body>
 <header>
   <h1>Moderation</h1>
+  {# The poll writes the numbers back into these spans, so every word in the
+     header stays here in the template rather than being spelled twice. #}
   <span id="counts">
-    {% for status, n in counts.items() %}{{ status }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}
+    {% for status, n in counts.items() %}{{ status }}: <span data-count="{{ status }}">{{ n }}</span>{% if not loop.last %} · {% endif %}{% endfor %}
   </span>
   {% if oldest_wait %}
-  <span id="oldest">oldest queued: {{ oldest_wait }}</span>
+  <span id="oldest">oldest queued: <span id="oldest-wait">{{ oldest_wait }}</span></span>
   {% endif %}
-  <a href="/admin/export.csv">Export CSV</a>
+  {# Shown only when the poll is holding a reload back, so a page that has
+     stopped keeping itself current always says so. A plain link: the reload it
+     offers does not depend on the script that revealed it. #}
+  <a id="notice" href="/admin" hidden>out of date — refresh</a>
+  <a class="export" href="/admin/export.csv">Export CSV</a>
 </header>
 {# `autoplay` is off for the on-the-wall section: it grows all event, and
    fifty playing videos would make the page the takedown lives on unusable. #}
@@ -80,7 +88,9 @@
     <div class="actions">{{ caller() }}</div>
   </div>
 {% endmacro %}
-<main>
+<main id="board"
+      data-pending="{{ pending|map(attribute='id')|join(',') }}"
+      data-on-wall="{{ on_wall|map(attribute='id')|join(',') }}">
   <h2>Waiting for moderation</h2>
   <div class="cards">
     {% for s in pending %}
@@ -93,7 +103,7 @@
       </form>
       {% endcall %}
     {% else %}
-    <div class="empty">Nothing waiting for moderation. This page does not auto-refresh — reload for new pieces.</div>
+    <div class="empty">Nothing waiting for moderation. New submissions appear here on their own.</div>
     {% endfor %}
   </div>
 
@@ -110,5 +120,93 @@
     {% endfor %}
   </div>
 </main>
+<script>
+    // A moderator stands and watches this page, so submissions that finish
+    // rendering have to arrive without them reaching for the reload button.
+    //
+    // The header's numbers are patched in place: that is what keeps the
+    // stalled-queue signal honest on a page left open all event without
+    // reloading over somebody once a minute. Cards can only come from the
+    // server's markup, so a changed grid needs a real reload — and when that
+    // reload would not be a safe thing to do unasked, the header says so
+    // instead and the moderator picks the moment.
+    const board = document.getElementById("board");
+    const notice = document.getElementById("notice");
+
+    function drawn(grid) {
+        return board.dataset[grid] ? board.dataset[grid].split(",") : [];
+    }
+
+    function grids(state) {
+        return [[drawn("pending"), state.pending],
+                [drawn("onWall"), state.on_wall]];
+    }
+
+    function drawHeader(state) {
+        for (const el of document.querySelectorAll("#counts [data-count]")) {
+            el.textContent = state.counts[el.dataset.count];
+        }
+        const oldest = document.getElementById("oldest");
+        if (!oldest) return;         // no queue to report when this was drawn
+        if (state.oldest_wait) {
+            document.getElementById("oldest-wait").textContent =
+                state.oldest_wait;
+        } else {
+            // an empty queue says nothing, not a wait that has since ended
+            oldest.remove();
+        }
+    }
+
+    function changed(state) {
+        return grids(state).some(([was, now]) => was.length !== now.length
+            || !was.every((id, i) => id === String(now[i])));
+    }
+
+    // Appended cards leave every card already on screen where it is. A card
+    // *leaving* a grid slides the rest up, which is not a thing to do under a
+    // moderator's cursor when the button beneath it rejects a submission.
+    function onlyAppended(state) {
+        return grids(state).every(([was, now]) =>
+            was.every((id, i) => id === String(now[i])));
+    }
+
+    // The stalled-queue signal arriving is a change too, and the one that
+    // matters most: a queue that has stopped moving produces no new cards, so
+    // nothing else here would ever notice it. Its wording lives in the
+    // template, which is why this wants the page and not a patch. Losing the
+    // signal needs no reload — drawHeader has already dropped it.
+    function signalAppeared(state) {
+        return Boolean(state.oldest_wait)
+            && document.getElementById("oldest") === null;
+    }
+
+    function readingSource() {
+        return document.querySelector("details[open]") !== null;
+    }
+
+    async function poll() {
+        try {
+            // A booth request that never answers would otherwise leave this
+            // page polling once and then sitting there, quietly current.
+            const resp = await fetch("/admin/api/moderation",
+                                     {signal: AbortSignal.timeout(4000)});
+            if (resp.ok) {
+                const state = await resp.json();
+                drawHeader(state);
+                if (changed(state) || signalAppeared(state)) {
+                    if (onlyAppended(state) && !readingSource()) {
+                        location.reload();
+                        return;
+                    }
+                    notice.hidden = false;
+                }
+            }
+        } catch (e) { /* flaky booth network: keep polling */
+        }
+        setTimeout(poll, 5000);
+    }
+
+    poll();
+</script>
 </body>
 </html>
