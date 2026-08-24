@@ -1,92 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Code Art Wall</title>
-<style>
-  :root { color-scheme: dark; }
-  body { margin: 0; min-height: 100vh; background: #05060f; color: #e8e8f0;
-    font-family: -apple-system, "Segoe UI", sans-serif; }
-  header { display: flex; align-items: baseline; gap: 14px; padding: 10px 18px; }
-  h1 { font-size: 18px; margin: 0; letter-spacing: 0.04em; }
-  #hint { color: #9a9ab8; font-size: 13px; margin-left: auto; }
-  /* Every approved piece is always on screen; tiles shrink as the count
-     grows (MVP plan §4). */
-  #grid { display: grid; gap: 6px; padding: 0 6px 6px;
-    grid-template-columns: repeat(auto-fill, minmax(var(--tile, 240px), 1fr)); }
-  .tile { position: relative; aspect-ratio: 1; overflow: hidden;
-    border-radius: 6px; background: #10101c; display: block; }
-  .tile img, .tile video { width: 100%; height: 100%; object-fit: contain; }
-  .tile .by { position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 10px 8px 6px; font-size: 12px; color: #d8d8e8;
-    background: linear-gradient(transparent, rgba(5, 6, 15, 0.85)); }
-  #empty { padding: 60px 20px; text-align: center; color: #9a9ab8; }
-  #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
-    background: #1d3a2a; border: 1px solid #40916c; color: #b7e4c7;
-    padding: 10px 22px; border-radius: 999px; font-size: 16px;
-    opacity: 0; transition: opacity 0.4s; pointer-events: none; }
-  #toast.show { opacity: 1; }
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Code Art Wall</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+        }
+.logo{
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+}
+#logo {
+    width: 200px;
+}
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background:black;
+            color: #19191c;
+            font-family:"JetBrains Sans", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        header {
+            flex: none;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 18px;
+            justify-content: space-between;
+            /*background: rgb(25, 25, 28);*/
+          color:white;
+            /*border-bottom: 3px solid transparent;*/
+            /*border-image: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF) 1;*/
+        }
+
+        h1 {
+            font-weight: 600;
+          font-size: 18px;
+            margin: 0;
+            letter-spacing: 0.04em;
+            /*background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF);*/
+            /*-webkit-background-clip: text;*/
+            /*background-clip: text;*/
+            /*-webkit-text-fill-color: transparent;*/
+        }
+
+        #hint {
+          color:rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            margin-left: auto;
+        }
+
+        /* Every approved piece is always on screen: uniform square tiles sized
+           to fill the viewport, shrinking forever as the wall grows (ADR-0005). */
+        #grid {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 6px;
+            padding: 6px;
+        }
+
+        .tile {
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            width: var(--tile, 240px);
+            height: var(--tile, 240px);
+            border-radius: 6px;
+
+            display: block;
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .tile img, .tile video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .tile .by {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 10px 8px 6px;
+            font-size: 12px;
+            color: white;
+        }
+
+        #empty {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6f737a;
+            pointer-events: none;
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            transform: translateX(-50%);
+            background: #e6f9ef;
+            border: 1px solid #21D789;
+            color: #14804a;
+            padding: 10px 22px;
+            border-radius: 999px;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.4s;
+            pointer-events: none;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
 <header>
-  <h1>CODE ART WALL</h1>
-  <span id="hint">Write Python. Make art. Scan the QR to submit.</span>
+    <img src="media/PyCharm-white.svg" alt="PyCharm logo." id="logo">
+    <div>
+
+    <h1>
+        PyCharm art wall
+    </h1>
+    <span id="hint" >Write Python. Make art. Scan the QR to submit.</span>
+    </div>
 </header>
+<div  class="logo">
+
+
+</div>
 <div id="grid"></div>
 <div id="empty">No pieces yet — be the first on the wall!</div>
 <div id="toast"></div>
 
 <script>
-const grid = document.getElementById("grid");
-const known = new Set();
-let toastTimer = null;
+    const grid = document.getElementById("grid");
+    const known = new Set();
+    let toastTimer = null;
 
-function toast(msg) {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 5000);
-}
-
-function addTile(piece, announce) {
-  const a = document.createElement("a");
-  a.className = "tile";
-  a.href = `/piece/${piece.id}`;
-  a.innerHTML = piece.kind === "animated"
-    ? `<video src="${piece.media_url}" autoplay muted loop playsinline></video>`
-    : `<img src="${piece.media_url}" alt="" loading="lazy">`;
-  const by = document.createElement("div");
-  by.className = "by";
-  by.textContent = piece.name;
-  a.appendChild(by);
-  grid.appendChild(a);
-  known.add(piece.id);
-  if (announce) toast(`New piece by ${piece.name}!`);
-}
-
-function shrinkTiles() {
-  // gently shrink the minimum tile size as the wall fills up
-  const n = known.size;
-  const min = n > 80 ? 140 : n > 40 ? 180 : n > 15 ? 220 : 240;
-  grid.style.setProperty("--tile", `${min}px`);
-}
-
-async function poll(first) {
-  try {
-    const resp = await fetch("/api/wall");
-    const { pieces } = await resp.json();
-    for (const piece of pieces) {
-      if (!known.has(piece.id)) addTile(piece, !first);
+    function toast(msg) {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 5000);
     }
-    document.getElementById("empty").style.display = known.size ? "none" : "";
-    shrinkTiles();
-  } catch (e) { /* flaky booth network: keep polling */ }
-  setTimeout(() => poll(false), 5000);
-}
-poll(true);
+
+    function addTile(piece, announce) {
+        const a = document.createElement("a");
+        a.className = "tile";
+        a.href = `/piece/${piece.id}`;
+        a.innerHTML = piece.kind === "animated"
+            ? `<video src="${piece.media_url}" autoplay muted loop playsinline></video>`
+            : `<img src="${piece.media_url}" alt="" loading="lazy">`;
+        const by = document.createElement("div");
+        by.className = "by";
+        by.textContent = piece.name;
+        a.appendChild(by);
+        grid.appendChild(a);
+        known.add(piece.id);
+        if (announce) toast(`New piece by ${piece.name}!`);
+    }
+
+    function layout() {
+        // largest uniform square size such that all n tiles fit the grid area
+        const n = known.size;
+        if (!n) return;
+        const gap = 6, pad = 6;
+        const W = grid.clientWidth - 2 * pad, H = grid.clientHeight - 2 * pad;
+        let best = 0;
+        for (let cols = 1; cols <= n; cols++) {
+            const rows = Math.ceil(n / cols);
+            const size = Math.min((W - (cols - 1) * gap) / cols,
+                (H - (rows - 1) * gap) / rows);
+            if (size > best) best = size;
+        }
+        grid.style.setProperty("--tile", `${Math.floor(best)}px`);
+    }
+
+    window.addEventListener("resize", layout);
+
+    async function poll(first) {
+        try {
+            const resp = await fetch("/api/wall");
+            const {pieces} = await resp.json();
+            for (const piece of pieces) {
+                if (!known.has(piece.id)) addTile(piece, !first);
+            }
+            document.getElementById("empty").style.display = known.size ? "none" : "";
+            layout();
+        } catch (e) { /* flaky booth network: keep polling */
+        }
+        setTimeout(() => poll(false), 5000);
+    }
+
+    poll(true);
 </script>
 </body>
 </html>

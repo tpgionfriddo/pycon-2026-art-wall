@@ -4,34 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moderation — Code Art Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; }
-  body { margin: 0; background: #0d0d16; color: #e8e8f0;
+  :root { color-scheme: light; }
+  body { margin: 0; background: #ffffff; color: #19191c;
     font-family: -apple-system, "Segoe UI", sans-serif; }
   header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-    padding: 12px 18px; background: #1a1a2b; border-bottom: 1px solid #2c2c44; }
-  h1 { font-size: 17px; margin: 0; }
-  #counts { color: #9a9ab8; font-size: 13px; }
-  header a { margin-left: auto; color: #8ab4ff; font-size: 13px; }
+    padding: 12px 18px; background: #ffffff; border-bottom: 3px solid transparent;
+    border-image: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF) 1; }
+  h1 { font-size: 17px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
+    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #counts { color: #6f737a; font-size: 13px; }
+  header a { margin-left: auto; color: #6B57FF; font-size: 13px; }
   main { padding: 18px; display: grid; gap: 16px;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-  .card { background: #12121e; border: 1px solid #2c2c44; border-radius: 8px;
+  .card { background: #ffffff; border: 1px solid #d8d8e0; border-radius: 8px;
     overflow: hidden; display: flex; flex-direction: column; }
   .card img, .card video { width: 100%; aspect-ratio: 1; object-fit: contain;
     background: #000; }
   .meta { padding: 10px 12px; font-size: 13px; }
   .meta .who { font-weight: 600; }
-  .meta .mail { color: #9a9ab8; }
+  .meta .mail { color: #6f737a; }
   details { padding: 0 12px 8px; font-size: 12px; }
-  details pre { max-height: 220px; overflow: auto; background: #0d0d16;
-    padding: 8px; border-radius: 6px; font: 11px/1.5 "SF Mono", Menlo, monospace; }
+  details pre { max-height: 220px; overflow: auto; background: #f7f7fa;
+    padding: 8px; border-radius: 6px; font: 11px/1.5 "JetBrains Mono", "SF Mono", Menlo, monospace; color: #19191c; border: 1px solid #d8d8e0; }
   .actions { display: flex; gap: 8px; padding: 10px 12px; margin-top: auto; }
   .actions form { flex: 1; display: flex; }
   .actions button { flex: 1; padding: 9px; font-size: 14px; cursor: pointer;
-    border-radius: 6px; border: 1px solid; }
-  .approve button { background: #1d3a2a; border-color: #40916c; color: #b7e4c7; }
-  .reject button { background: #3a1d1d; border-color: #916c40; color: #e4c7b7; }
-  #none { padding: 60px; text-align: center; color: #9a9ab8; grid-column: 1/-1; }
+    border-radius: 6px; border: 1px solid; font-weight: 600; }
+  .approve button { background: #e6f9ef; border-color: #21D789; color: #14804a; }
+  .reject button { background: #ffecf1; border-color: #FE2857; color: #c81f4d; }
+  #none { padding: 60px; text-align: center; color: #6f737a; grid-column: 1/-1; }
 </style>
 </head>
 <body>

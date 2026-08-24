@@ -1,6 +1,7 @@
 # Code Art Wall — MVP Plan (confirmed 2026-07-28)
 
-Confirmed in a grilling session; status: **approved, not yet implemented**.
+Confirmed in a grilling session; status: **implemented** (`699f5b4`); wall
+layout and theme since revised (ADR-0005, ADR-0006).
 Vocabulary: see [CONTEXT.md](../CONTEXT.md). Key decisions with rationale:
 [docs/adr/](./adr/). Where this plan deviates from `AGENT_BRIEF.md`
 (py5 dropped, 5 s loops, no winner-picking view), this plan and the ADRs win.
@@ -60,9 +61,14 @@ Vocabulary: see [CONTEXT.md](../CONTEXT.md). Key decisions with rationale:
 - Plain HTML/JS (no framework). Polls a JSON list of approved pieces every
   ~5 s, diffs client-side; new piece → tile added + "New piece by <name>!"
   toast.
-- Grid shows **all** approved pieces, auto-shrinking tiles
-  (CSS grid auto-fill); nothing is ever hidden or rotated out.
+- Grid shows **all** approved pieces as uniform square tiles that always
+  fill the screen: tile size is computed from piece count + viewport, so
+  few pieces render large and tiles shrink without limit as the wall grows;
+  the page never scrolls, nothing is ever hidden or rotated out (ADR-0005).
+  Size changes animate (~0.5 s).
 - `<img>` for static, muted autoplaying looping `<video>` for animated.
+- All five pages share the JetBrains-branded light theme (ADR-0006):
+  light surfaces, logo-gradient accents, JetBrains Mono for headings/code.
 
 ## 5. Hosting (see ADR-0004)
 

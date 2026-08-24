@@ -4,52 +4,60 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Submit your piece — Code Art Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
-    background: #0d0d16; color: #e8e8f0;
+    background: #ffffff; color: #19191c;
     font-family: -apple-system, "Segoe UI", sans-serif; }
-  header { padding: 10px 16px; background: #1a1a2b;
-    border-bottom: 1px solid #2c2c44; display: flex; align-items: baseline;
-    gap: 12px; flex-wrap: wrap; }
-  header h1 { font-size: 16px; margin: 0; }
-  #status { font-size: 12px; color: #9a9ab8; margin-left: auto; }
+  header { padding: 10px 16px; background: #ffffff;
+    border-bottom: 3px solid transparent;
+    border-image: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF) 1;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
+    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #status { font-size: 12px; color: #6f737a; margin-left: auto; }
   main { flex: 1; display: flex; min-height: 0; flex-wrap: wrap; }
   #left { flex: 1 1 420px; display: flex; flex-direction: column;
-    min-width: 0; border-right: 1px solid #2c2c44; }
-  #editor { flex: 1; min-height: 320px; overflow: auto; }
+    min-width: 0; border-right: 1px solid #d8d8e0; }
+  #editor { flex: 1; min-height: 320px; overflow: auto; max-height: 75vh; }
+  #editor .cm-editor, #editor .cm-content, #editor .cm-gutters { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
   #editor .cm-editor { height: 100%; font-size: 13px; }
   #right { flex: 1 1 380px; display: flex; flex-direction: column; min-width: 0; }
   #canvasbox { display: flex; align-items: center; justify-content: center;
     padding: 12px; min-height: 280px; }
-  canvas { max-width: min(440px, 90vw); max-height: 440px; background: #000;
-    border: 1px solid #2c2c44; border-radius: 6px; }
-  #console { height: 110px; overflow-y: auto; background: #12121e;
-    border-top: 1px solid #2c2c44; padding: 6px 12px;
-    font: 11px/1.5 "SF Mono", Menlo, monospace; white-space: pre-wrap; }
-  #console .err { color: #ff7070; }
+  canvas { max-width: min(440px, 90vw); max-height: 440px; background: #f0f0f4;
+    border: 1px solid #d8d8e0; border-radius: 6px; }
+  #console { height: 110px; overflow-y: auto; background: #f7f7fa;
+    border-top: 1px solid #d8d8e0; padding: 6px 12px;
+    font: 11px/1.5 "JetBrains Mono", "SF Mono", Menlo, monospace; white-space: pre-wrap; color: #19191c; }
+  #console .err { color: #c81f4d; }
   #bar { display: flex; gap: 8px; padding: 8px 12px; align-items: center;
-    border-top: 1px solid #2c2c44; flex-wrap: wrap; }
-  button { background: #26263e; color: #e8e8f0; border: 1px solid #3c3c5c;
+    border-top: 1px solid #d8d8e0; flex-wrap: wrap; }
+  button { background: #f7f7fa; color: #19191c; border: 1px solid #d8d8e0;
     border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
-  button:hover:not(:disabled) { background: #32324e; }
+  button:hover:not(:disabled) { background: #eeeef2; }
   button:disabled { opacity: 0.4; cursor: default; }
-  #preview-btn { background: #2d4a6a; border-color: #4070a0; font-weight: 600; }
-  #gate-msg { font-size: 12px; color: #9a9ab8; }
-  #gate-msg.ok { color: #7ad67a; }
-  #gate-msg.bad { color: #ff9a70; }
-  footer { border-top: 1px solid #2c2c44; background: #12121e;
+  #preview-btn { background: #6B57FF; border-color: #6B57FF; color: white; font-weight: 600; }
+  #preview-btn:hover:not(:disabled) { background: #5240e0; border-color: #5240e0; }
+  #gate-msg { font-size: 12px; color: #6f737a; }
+  #gate-msg.ok { color: #14804a; }
+  #gate-msg.bad { color: #c81f4d; }
+  footer { border-top: 1px solid #d8d8e0; background: #f7f7fa;
     padding: 14px 16px; }
   form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  input[type=text], input[type=email] { background: #1a1a2b; color: #e8e8f0;
-    border: 1px solid #3c3c5c; border-radius: 6px; padding: 8px 10px;
+  input[type=text], input[type=email] { background: #ffffff; color: #19191c;
+    border: 1px solid #d8d8e0; border-radius: 6px; padding: 8px 10px;
     font-size: 13px; }
-  label.consent { font-size: 12px; color: #b8b8d0; display: flex; gap: 6px;
+  label.consent { font-size: 12px; color: #6f737a; display: flex; gap: 6px;
     align-items: center; max-width: 420px; }
-  #submit-btn { background: #2d6a4f; border-color: #40916c; font-weight: 600; }
-  #pkg { font-size: 11px; color: #9a9ab8; margin-top: 8px; }
-  #pkg code { color: #b8c8e8; }
+  #submit-btn { background: #6B57FF; border-color: #6B57FF; color: white; font-weight: 600; }
+  #submit-btn:hover:not(:disabled) { background: #5240e0; border-color: #5240e0; }
+  #pkg { font-size: 11px; color: #6f737a; margin-top: 8px; }
+  #pkg code { color: #19191c; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
 </style>
 </head>
 <body>
@@ -125,13 +133,13 @@ def _normalize(obj):
         from matplotlib.figure import Figure
         if isinstance(obj, Figure):
             obj.canvas.draw()
-            arr = np.asarray(obj.canvas.buffer_rgba())[..., :3].copy()
+            arr = np.asarray(obj.canvas.buffer_rgba()).copy()
             plt.close(obj)
             return arr
     if "PIL.Image" in sys.modules:
         from PIL import Image
         if isinstance(obj, Image.Image):
-            return np.asarray(obj.convert("RGB"))
+            return np.asarray(obj.convert("RGBA"))
     arr = np.asarray(obj)
     if arr.dtype != np.uint8:
         arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
@@ -164,7 +172,7 @@ def render(t=0.0):
     h, w = arr.shape[0], arr.shape[1]
     rgba = np.empty((h, w, 4), np.uint8)
     rgba[..., :3] = arr[..., :3]
-    rgba[..., 3] = 255
+    rgba[..., 3] = arr[..., 3] if arr.shape[-1] == 4 else 255
     return rgba
 `;
 
@@ -195,13 +203,12 @@ setGate(false, "A successful preview is required before you can submit.");
 // ------------------------------------------------------------- CodeMirror
 const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");
 const { python } = await import("https://esm.sh/@codemirror/lang-python@6.1.6");
-const { oneDark } = await import("https://esm.sh/@codemirror/theme-one-dark@6.1.2");
 
 const view = new EditorView({
   doc: STARTER,
   parent: $("editor"),
   extensions: [
-    basicSetup, python(), oneDark,
+    basicSetup, python(),
     EditorView.updateListener.of(update => {
       if (update.docChanged && previewedCode !== null
           && view.state.doc.toString() !== previewedCode) {

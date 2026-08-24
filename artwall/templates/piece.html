@@ -4,25 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ piece.name }} — Code Art Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: light; }
   body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
-    background: #05060f; color: #e8e8f0; padding: 20px;
+    background: #ffffff; color: #19191c; padding: 20px;
     font-family: -apple-system, "Segoe UI", sans-serif; }
   #frame { width: min(85vmin, 900px); }
   #frame img, #frame video { width: 100%; border-radius: 10px;
-    border: 1px solid #2c2c44; display: block; }
+    border: 1px solid #d8d8e0; display: block; }
   #source { width: 100%; max-height: 85vmin; overflow: auto; margin: 0;
-    background: #12121e; border: 1px solid #2c2c44; border-radius: 10px;
-    padding: 16px; font: 13px/1.5 "SF Mono", Menlo, monospace;
-    color: #d8f0d8; box-sizing: border-box; display: none; }
-  h1 { font-size: 18px; margin: 0; font-weight: 500; }
-  h1 span { color: #9a9ab8; }
-  button { background: #26263e; color: #e8e8f0; border: 1px solid #3c3c5c;
-    border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
-  button:hover { background: #32324e; }
-  a { color: #8ab4ff; font-size: 13px; }
+    background: #f7f7fa; border: 1px solid #d8d8e0; border-radius: 10px;
+    padding: 16px; font: 13px/1.5 "JetBrains Mono", "SF Mono", Menlo, monospace;
+    color: #19191c; box-sizing: border-box; display: none; }
+  h1 { font-size: 18px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
+    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h1 span { color: #6f737a; background: none; -webkit-background-clip: initial; background-clip: initial; color: #6f737a; }
+  button { background: #ffffff; color: #6B57FF; border: 1px solid #6B57FF;
+    border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  button:hover { background: #6B57FF; color: #ffffff; }
+  a { color: #6B57FF; font-size: 13px; text-decoration: none; }
+  a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
