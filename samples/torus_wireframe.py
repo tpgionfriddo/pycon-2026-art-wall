@@ -24,8 +24,8 @@ def draw(t):
     shade = (depth - depth.min()) / (np.ptp(depth) + 1e-9)
 
     fig, ax = plt.subplots(figsize=(5.12, 5.12), dpi=100)
-    fig.patch.set_facecolor("#05060f")
-    ax.set_facecolor("#05060f")
+    fig.patch.set_facecolor("none")   # transparent background
+    ax.set_facecolor("none")
     ax.add_collection(LineCollection(
         segs, colors=plt.cm.cool(shade),
         linewidths=0.4 + 1.2 * shade, alpha=0.9))

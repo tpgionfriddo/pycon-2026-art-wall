@@ -18,8 +18,8 @@ def draw():
     trails = np.array(trails)  # (steps, n, 2)
 
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
-    fig.patch.set_facecolor("#0d0d16")
-    ax.set_facecolor("#0d0d16")
+    fig.patch.set_facecolor("none")   # transparent background
+    ax.set_facecolor("none")
 
     colors = plt.cm.plasma(np.linspace(0, 1, trails.shape[1]))
     for i in range(trails.shape[1]):

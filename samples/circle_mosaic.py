@@ -21,8 +21,8 @@ def draw():
     order = np.argsort([r.centroid.x + r.centroid.y for r in regions])
 
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
-    fig.patch.set_facecolor("#101018")
-    ax.set_facecolor("#101018")
+    fig.patch.set_facecolor("none")   # transparent background
+    ax.set_facecolor("none")
 
     for rank, idx in enumerate(order):
         ax.fill(*regions[idx].exterior.xy, color=palette[rank],

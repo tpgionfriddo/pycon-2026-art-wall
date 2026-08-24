@@ -206,13 +206,13 @@ def _normalize(obj):
         from matplotlib.figure import Figure
         if isinstance(obj, Figure):
             obj.canvas.draw()
-            arr = np.asarray(obj.canvas.buffer_rgba())[..., :3].copy()
+            arr = np.asarray(obj.canvas.buffer_rgba()).copy()
             plt.close(obj)
             return arr
     if "PIL.Image" in sys.modules:
         from PIL import Image
         if isinstance(obj, Image.Image):
-            return np.asarray(obj.convert("RGB"))
+            return np.asarray(obj.convert("RGBA"))
     arr = np.asarray(obj)
     if arr.dtype != np.uint8:
         arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
@@ -245,7 +245,7 @@ def render(t=0.0):
     h, w = arr.shape[0], arr.shape[1]
     rgba = np.empty((h, w, 4), np.uint8)
     rgba[..., :3] = arr[..., :3]
-    rgba[..., 3] = 255
+    rgba[..., 3] = arr[..., 3] if arr.shape[-1] == 4 else 255
     return rgba
 `;
 

@@ -8,6 +8,8 @@ result.json into /out. Output spec (MVP plan §3):
   animated -> piece.webm, 150 frames @ 30 fps (5 s loop), fit 512x512,
               encoded by the in-container ffmpeg to WebM/VP9 (ADR-0003)
 Aspect ratio is always preserved (fit-in-box, no crop/stretch).
+Alpha is preserved end-to-end: PNGs keep the full alpha channel and WebM
+is encoded with VP9 alpha (yuva420p), so transparent backgrounds survive.
 """
 import importlib.util
 import inspect
@@ -58,16 +60,16 @@ def render_static(draw, out_dir: Path) -> str:
 
 def render_animated(draw, out_dir: Path) -> str:
     first = fit_in_box(normalize(draw(0.0)), VIDEO_BOX)
-    # yuv420p requires even dimensions; lock every frame to this geometry
+    # yuva420p requires even dimensions; lock every frame to this geometry
     w, h = max(2, first.width // 2 * 2), max(2, first.height // 2 * 2)
     out = out_dir / "piece.webm"
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
-        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
+        "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}",
         "-r", str(FPS), "-i", "-",
         "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "34",
         "-deadline", "good", "-cpu-used", "5", "-row-mt", "1",
-        "-pix_fmt", "yuv420p", str(out),
+        "-pix_fmt", "yuva420p", str(out),
     ]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     try:
@@ -76,7 +78,7 @@ def render_animated(draw, out_dir: Path) -> str:
             if (frame.width, frame.height) != (w, h):
                 frame = frame.resize((w, h))
             proc.stdin.write(
-                np.asarray(frame.convert("RGB"), dtype=np.uint8).tobytes())
+                np.asarray(frame.convert("RGBA"), dtype=np.uint8).tobytes())
     finally:
         proc.stdin.close()
         returncode = proc.wait()

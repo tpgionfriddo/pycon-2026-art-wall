@@ -53,16 +53,18 @@ def _render(conn, settings, code: str):
     return db.get_submission(conn, sid)
 
 
-def _probe_video(path: Path) -> tuple[str, int, int]:
-    """codec/width/height via ffprobe inside the worker image (host has none)."""
+def _probe_video(path: Path) -> tuple[str, int, int, str]:
+    """codec/width/height/alpha_mode via ffprobe inside the worker image
+    (host has none)."""
     out = subprocess.run(
         ["docker", "run", "--rm", "-v", f"{path}:/probe.webm:ro", IMAGE,
          "ffprobe", "-v", "error", "-select_streams", "v:0",
-         "-show_entries", "stream=codec_name,width,height",
-         "-of", "csv=p=0", "/probe.webm"],
+         "-show_entries", "stream=codec_name,width,height:stream_tags=alpha_mode",
+         "-of", "default=nw=1", "/probe.webm"],
         capture_output=True, text=True, check=True).stdout.strip()
-    codec, w, h = out.split(",")
-    return codec, int(w), int(h)
+    info = dict(line.split("=", 1) for line in out.splitlines())
+    return (info["codec_name"], int(info["width"]), int(info["height"]),
+            info.get("TAG:alpha_mode", "0"))
 
 
 @pytest.mark.parametrize("sample,kind", SAMPLES.items())
@@ -80,11 +82,15 @@ def test_sample_renders(env, sample, kind):
         with Image.open(media) as img:
             assert img.format == "PNG"
             assert img.width <= STATIC_BOX and img.height <= STATIC_BOX
+            assert img.mode == "RGBA"
+            # both static samples leave their corners unpainted
+            assert img.getpixel((0, 0))[3] == 0
     else:
         assert media.suffix == ".webm"
-        codec, w, h = _probe_video(media)
+        codec, w, h, alpha_mode = _probe_video(media)
         assert codec == "vp9"
         assert w <= VIDEO_BOX and h <= VIDEO_BOX
+        assert alpha_mode == "1"  # VP9 alpha channel present
 
 
 def test_broken_code_marks_failed(env):
