@@ -284,6 +284,11 @@ moderator one.
 Every submission at every status — including rejected and taken-down — with
 the byline and the marketing permission each attendee gave.
 
+It also carries each attendee's first and last name, email, and the phone
+number and company they may have given. Treat the file as personal data:
+it goes somewhere the organisers control, not a shared laptop or a chat
+thread.
+
 **Do this before the stack is torn down at the end of the event.** It is the
 artefact the booth exists to produce, and the one thing here that nobody can
 reconstruct later.

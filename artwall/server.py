@@ -143,15 +143,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/submit")
     def submit(request: Request,
                code: str = Form(...),
-               name: str = Form(...),
+               first_name: str = Form(...),
+               last_name: str = Form(...),
                email: str = Form(...),
                byline: str = Form(""),
+               phone: str = Form(""),
+               company: str = Form(""),
                consent: bool = Form(False),
                conn=Depends(get_conn)):
+        first_name, last_name = first_name.strip(), last_name.strip()
         if len(code.encode("utf-8")) > settings.max_code_bytes:
             raise HTTPException(413, "Code exceeds the 32 KB limit")
-        if not code.strip() or not name.strip() or not email.strip():
-            raise HTTPException(400, "Code, name and email are required")
+        if not code.strip() or not first_name or not last_name \
+                or not email.strip():
+            raise HTTPException(
+                400, "Code, first name, last name and email are required")
         if not consent:
             raise HTTPException(400, "Consent is required")
         if db.count_queued(conn) >= settings.max_queue_depth:
@@ -160,7 +166,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not limiter.allow(ip):
             raise HTTPException(429, "Too many submissions — try again later")
         submission_id = db.create_submission(
-            conn, code, name.strip(), email.strip(), consent, byline.strip())
+            conn, code, db.compose_name(first_name, last_name), email.strip(),
+            consent, byline.strip(), first_name=first_name,
+            last_name=last_name, phone=phone.strip(), company=company.strip())
         return RedirectResponse(f"/submission/{submission_id}", status_code=303)
 
     @app.get("/submission/{submission_id}")
@@ -239,12 +247,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def export_csv(conn=Depends(get_conn)):
         buf = io.StringIO()
         writer = csv.writer(buf)
+        # The first six columns are load-bearing for whoever reads this at the
+        # booth; new columns append rather than reorder (see test_byline).
         writer.writerow(["id", "name", "email", "consent", "created_at",
-                         "status", "byline"])
+                         "status", "byline", "first_name", "last_name",
+                         "phone", "company"])
         for row in db.list_all(conn):
             writer.writerow([row["id"], row["name"], row["email"],
                              row["consent"], row["created_at"], row["status"],
-                             row["byline"]])
+                             row["byline"], row["first_name"],
+                             row["last_name"], row["phone"], row["company"]])
         buf.seek(0)
         return StreamingResponse(
             buf, media_type="text/csv",

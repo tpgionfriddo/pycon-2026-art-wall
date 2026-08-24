@@ -10,8 +10,11 @@ AUTH = ("booth", ADMIN_PASSWORD)
 
 VALID_FORM = {
     "code": "def draw():\n    return [[0]]\n",
-    "name": "Ada Lovelace",
+    "first_name": "Ada",
+    "last_name": "Lovelace",
     "email": "ada@example.com",
+    "phone": "",                # optional
+    "company": "",              # optional
     "byline": "Ada Lovelace",   # what the form's mirroring produces
     "consent": "on",
 }

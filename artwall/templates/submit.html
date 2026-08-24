@@ -22,20 +22,34 @@
   main { flex: 1; display: flex; min-height: 0; flex-wrap: wrap; }
   #left { flex: 1 1 420px; display: flex; flex-direction: column;
     min-width: 0; border-right: 1px solid #d8d8e0; }
-  #editor { flex: 1; min-height: 320px; overflow: auto; max-height: 75vh; }
+  /* No height cap: the form sits in the right column now, so that column
+     sets the row's height and the editor has to take up the slack. Capped, it
+     left a band of dead space under the button bar. */
+  #editor { flex: 1; min-height: 320px; overflow: auto; }
   #editor .cm-editor, #editor .cm-content, #editor .cm-gutters { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
   #editor .cm-editor { height: 100%; font-size: 13px; }
   #right { flex: 1 1 380px; display: flex; flex-direction: column; min-width: 0; }
+  /* Takes the column's slack so the console and the form sit at its foot,
+     level with the button bar in the left column. */
   #canvasbox { display: flex; align-items: center; justify-content: center;
-    padding: 12px; min-height: 280px; }
-  canvas { max-width: min(440px, 90vw); max-height: 440px; background: #f0f0f4;
+    padding: 12px; min-height: 280px; flex: 1; }
+  /* 100% rather than 90vw: the canvas shares a column now, so the column's
+     width is the limit that matters. 90vw overflowed it and put a horizontal
+     scrollbar on the page at narrow widths. */
+  canvas { max-width: min(440px, 100%); max-height: 440px; background: #f0f0f4;
     border: 1px solid #d8d8e0; border-radius: 6px; }
-  #console { height: 110px; overflow-y: auto; background: #f7f7fa;
+  #console-box { border-top: 1px solid #d8d8e0; background: #f7f7fa; }
+  #console-box > summary { padding: 6px 16px; font-size: 12px; color: #6f737a;
+    cursor: pointer; }
+  #console { height: 110px; overflow-y: auto;
     border-top: 1px solid #d8d8e0; padding: 6px 12px;
     font: 11px/1.5 "JetBrains Mono", "SF Mono", Menlo, monospace; white-space: pre-wrap; color: #19191c; }
   #console .err { color: #c81f4d; }
-  #bar { display: flex; gap: 8px; padding: 8px 12px; align-items: center;
-    border-top: 1px solid #d8d8e0; flex-wrap: wrap; }
+  /* The buttons' own height plus a little breathing room, and no more:
+     this strip is a control bar, not a panel. flex-shrink 0 keeps it at
+     content height even when the column is short. */
+  #bar { display: flex; gap: 8px; padding: 5px 12px; align-items: center;
+    border-top: 1px solid #d8d8e0; flex-wrap: wrap; flex: 0 0 auto; }
   button { background: #f7f7fa; color: #19191c; border: 1px solid #d8d8e0;
     border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
   button:hover:not(:disabled) { background: #eeeef2; }
@@ -45,19 +59,33 @@
   #gate-msg { font-size: 12px; color: #6f737a; }
   #gate-msg.ok { color: #14804a; }
   #gate-msg.bad { color: #c81f4d; }
-  footer { border-top: 1px solid #d8d8e0; background: #f7f7fa;
+  #submission { border-top: 1px solid #d8d8e0; background: #f7f7fa;
     padding: 14px 16px; }
-  form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  input[type=text], input[type=email] { background: #ffffff; color: #19191c;
+  #submission h2 { font-size: 13px; margin: 0 0 10px; color: #19191c;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 600; }
+  /* The form shares a column with the preview, so it stacks into rows
+     rather than running the fields out along one line. */
+  form { display: flex; flex-direction: column; gap: 10px;
+    align-items: stretch; }
+  .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  label.field { display: flex; flex-direction: column; gap: 4px;
+    flex: 1 1 120px; min-width: 0; font-size: 11px; color: #6f737a; }
+  label.field input { flex: 0 0 auto; }
+  input[type=text], input[type=email], input[type=tel] {
+    background: #ffffff; color: #19191c;
     border: 1px solid #d8d8e0; border-radius: 6px; padding: 8px 10px;
-    font-size: 13px; }
+    font-size: 13px; flex: 1 1 120px; min-width: 0; }
   label.consent { font-size: 12px; color: #6f737a; display: flex; gap: 6px;
     align-items: center; max-width: 420px; }
   label.consent a { color: #6B57FF; }
-  #submit-btn { background: #6B57FF; border-color: #6B57FF; color: white; font-weight: 600; }
+  /* align-self keeps it to its label's width in the stacked form. */
+  #submit-btn { background: #6B57FF; border-color: #6B57FF; color: white;
+    font-weight: 600; align-self: flex-start; }
   #submit-btn:hover:not(:disabled) { background: #5240e0; border-color: #5240e0; }
-  #byline-hint { font-size: 11px; color: #6f737a; flex-basis: 100%; }
-  #pkg { font-size: 11px; color: #6f737a; margin-top: 8px; }
+  #byline-hint { font-size: 11px; color: #6f737a; }
+  /* Sits between the editor and the Preview button it describes. */
+  #pkg { font-size: 11px; color: #6f737a; padding: 8px 12px;
+    border-top: 1px solid #d8d8e0; flex: 0 0 auto; }
   #pkg code { color: #19191c; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
 </style>
 </head>
@@ -69,6 +97,12 @@
 <main>
   <div id="left">
     <div id="editor"></div>
+    <div id="pkg">
+      Contract: define exactly one of <code>draw()</code> (static) or
+      <code>draw(t)</code> (animated, t: 0 to 1 over one {{ frames // fps }} s loop);
+      return a numpy array, matplotlib Figure, or PIL Image.
+      Supported packages: {% for p in packages %}<code>{{ p }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+    </div>
     <div id="bar">
       <button id="preview-btn" disabled>Preview (Cmd/Ctrl+Enter)</button>
       <button id="stop-btn" disabled>Stop</button>
@@ -77,32 +111,54 @@
   </div>
   <div id="right">
     <div id="canvasbox"><canvas id="canvas" width="512" height="512"></canvas></div>
-    <div id="console"></div>
+    <details id="console-box">
+      <summary>Console output</summary>
+      <div id="console"></div>
+    </details>
+    <section id="submission">
+      <h2>Submission</h2>
+      <form method="post" action="/submit" id="submit-form">
+        <input type="hidden" name="code" id="code-field">
+        <div class="field-row">
+          <input type="text" name="first_name" id="first-name-field"
+                 placeholder="First name" aria-label="First name" required>
+          <input type="text" name="last_name" id="last-name-field"
+                 placeholder="Last name" aria-label="Last name" required>
+        </div>
+        <!-- This one field carries a standing label: it mirrors the name as
+             it is typed, so its placeholder is gone by the time the attendee
+             looks at it. -->
+        <div class="field-row">
+          <label class="field" for="byline-field">Displayed name
+            <input type="text" name="byline" id="byline-field"
+                   placeholder="Displayed name">
+          </label>
+        </div>
+        <span id="byline-hint">Your displayed name is the only thing shown with
+          your piece. A handle is fine. Leave it empty to appear with no
+          name.</span>
+        <div class="field-row">
+          <input type="email" name="email" placeholder="Email"
+                 aria-label="Email" required>
+          <input type="tel" name="phone" placeholder="Phone (optional)"
+                 aria-label="Phone, optional">
+        </div>
+        <div class="field-row">
+          <input type="text" name="company" placeholder="Company (optional)"
+                 aria-label="Company, optional">
+        </div>
+        <label class="consent">
+          <input type="checkbox" name="consent" required>
+          <!-- One span, so the label's flex gap falls between the box and the
+               sentence rather than before the full stop. -->
+          <span>I accept the <a href="/terms" target="_blank"
+            rel="noopener">terms and conditions</a>.</span>
+        </label>
+        <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
+      </form>
+    </section>
   </div>
 </main>
-<footer>
-  <form method="post" action="/submit" id="submit-form">
-    <input type="hidden" name="code" id="code-field">
-    <input type="text" name="name" id="name-field" placeholder="Your name" required>
-    <input type="text" name="byline" id="byline-field"
-           placeholder="Byline on the wall" aria-label="Byline on the wall">
-    <input type="email" name="email" placeholder="Email" required>
-    <label class="consent">
-      <input type="checkbox" name="consent" required>
-      I accept the <a href="/terms" target="_blank" rel="noopener">terms and
-      conditions</a>.
-    </label>
-    <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
-    <span id="byline-hint">Your byline is the only thing shown with your
-      piece. A handle is fine. Leave it empty to appear with no name.</span>
-  </form>
-  <div id="pkg">
-    Contract: define exactly one of <code>draw()</code> (static) or
-    <code>draw(t)</code> (animated, t: 0 to 1 over one {{ frames // fps }} s loop);
-    return a numpy array, matplotlib Figure, or PIL Image.
-    Supported packages: {% for p in packages %}<code>{{ p }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
-  </div>
-</footer>
 
 <script type="module">
 // ---------------------------------------------------------------- constants
@@ -185,6 +241,7 @@ def render(t=0.0):
 const $ = id => document.getElementById(id);
 const canvas = $("canvas"), ctx = canvas.getContext("2d");
 const statusEl = $("status"), gateMsg = $("gate-msg"), consoleEl = $("console");
+const consoleBox = $("console-box");
 
 function log(msg, isErr = false) {
   const div = document.createElement("div");
@@ -193,6 +250,12 @@ function log(msg, isErr = false) {
   consoleEl.appendChild(div);
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
+
+// The console starts collapsed, which would otherwise hide the one thing an
+// attendee has to read: why their piece did not run. Only the three places
+// that catch a real failure call this. Pyodide's stderr does not, because
+// packages warn on it routinely and that is not worth opening the box for.
+function revealConsole() { consoleBox.open = true; }
 const status = s => { statusEl.textContent = s; };
 
 // ------------------------------------------- mandatory-preview gate state
@@ -208,12 +271,20 @@ setGate(false, "A successful preview is required before you can submit.");
 // ---------------------------------------------------------------- byline
 // Credit is the default: the byline tracks the name until the attendee edits
 // it themselves. After that the byline is theirs, including when they clear it.
-const nameField = $("name-field"), bylineField = $("byline-field");
+// The name is two fields now, so the mirror is their join rather than one
+// value: typing a first name alone must not leave a trailing space behind.
+const firstNameField = $("first-name-field"), lastNameField = $("last-name-field");
+const bylineField = $("byline-field");
 let bylineEdited = false;
 bylineField.addEventListener("input", () => { bylineEdited = true; });
-nameField.addEventListener("input", () => {
-  if (!bylineEdited) bylineField.value = nameField.value;
-});
+for (const field of [firstNameField, lastNameField]) {
+  field.addEventListener("input", () => {
+    if (bylineEdited) return;
+    bylineField.value =
+      [firstNameField.value.trim(), lastNameField.value.trim()]
+        .filter(Boolean).join(" ");
+  });
+}
 
 // ------------------------------------------------------------- CodeMirror
 const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");
@@ -254,6 +325,7 @@ try {
   log("Reload the page to retry. The preview (and therefore submitting) " +
       "needs internet access, and Pyodide could not be loaded.", true);
   log(String(e), true);
+  revealConsole();
 }
 
 // -------------------------------------------------------- frame rendering
@@ -282,7 +354,8 @@ function startAnim() {
     try {
       blitFrame(t);
     } catch (e) {
-      stopAnim(); status("frame error"); log(e.message, true); return;
+      stopAnim(); status("frame error"); log(e.message, true);
+      revealConsole(); return;
     }
     animId = requestAnimationFrame(tick);
   }
@@ -323,6 +396,7 @@ async function preview() {
   } catch (e) {
     status("preview failed");
     log(e.message, true);
+    revealConsole();
     previewedCode = null;
     setGate(false, "Preview failed. Fix the error and preview again.");
   } finally {

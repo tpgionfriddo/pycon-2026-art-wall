@@ -26,7 +26,7 @@ def test_admin_reports_how_long_the_oldest_queued_submission_has_waited(
 
 def test_admin_reports_the_oldest_wait_not_the_newest(client, conn):
     submit(client)
-    submit(client, name="Grace")
+    submit(client, first_name="Grace")
     _queued_since(conn, 1, minutes=40)
     _queued_since(conn, 2, minutes=3)
     body = client.get("/admin", auth=AUTH).text
