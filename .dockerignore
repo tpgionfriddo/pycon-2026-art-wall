@@ -1,0 +1,29 @@
+# Build context for the images built from the repo root (worker/Dockerfile).
+# The sandbox image needs only samples/preview.py and worker/render_job.py;
+# the sample media alone is ~46 MB that no build ever uses, so keep it out.
+
+.git/
+.venv/
+__pycache__/
+*.py[co]
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Runtime state — database, rendered media, contact data. Never in an image.
+data/
+
+# Sample art: keep the render harness, drop the rendered media and the pieces.
+samples/*
+!samples/preview.py
+
+# Nothing below is used at runtime by any image.
+.idea/
+.junie/
+.scratch/
+docs/
+prototypes/
+tests/
+models/
+*.ipynb
+*.md

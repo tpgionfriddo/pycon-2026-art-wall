@@ -6,3 +6,8 @@ __pycache__/
 .DS_Store
 data/
 .background_output_*.txt
+
+# IDE state: machine-local absolute paths (interpreter, data sources).
+.idea/
+# Local toolchain pin; nothing in this project uses the JVM.
+.sdkmanrc
