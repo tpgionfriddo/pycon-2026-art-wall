@@ -12,7 +12,8 @@ from .conftest import AUTH, approved, submit
 
 
 def test_byline_is_stored_separately_from_the_contact_name(client, conn):
-    submit(client, name="Ada Lovelace", byline="lovelace_dev")
+    submit(client, first_name="Ada", last_name="Lovelace",
+           byline="lovelace_dev")
     row = db.get_submission(conn, 1)
     assert row["name"] == "Ada Lovelace"
     assert row["byline"] == "lovelace_dev"
@@ -20,26 +21,31 @@ def test_byline_is_stored_separately_from_the_contact_name(client, conn):
 
 def test_byline_defaults_to_empty_when_the_form_omits_it(client, conn):
     client.post("/submit", data={"code": "def draw():\n    return [[0]]\n",
-                                 "name": "Ada", "email": "ada@example.com",
+                                 "first_name": "Ada",
+                                 "last_name": "Lovelace",
+                                 "email": "ada@example.com",
                                  "consent": "on"}, follow_redirects=False)
     assert db.get_submission(conn, 1)["byline"] == ""
 
 
 def test_a_handle_credits_the_piece_by_that_handle(client, conn):
-    approved(client, conn, name="Ada Lovelace", byline="lovelace_dev")
+    approved(client, conn, first_name="Ada", last_name="Lovelace",
+             byline="lovelace_dev")
     piece = client.get("/api/wall").json()["pieces"][0]
     assert piece["byline"] == "lovelace_dev"
     assert "lovelace_dev" in client.get("/piece/1").text
 
 
 def test_cleared_byline_puts_no_name_on_the_wall(client, conn):
-    approved(client, conn, name="Ada Lovelace", byline="")
+    approved(client, conn, first_name="Ada", last_name="Lovelace",
+             byline="")
     piece = client.get("/api/wall").json()["pieces"][0]
     assert piece["byline"] is None
 
 
 def test_cleared_byline_puts_no_name_on_the_piece_page(client, conn):
-    approved(client, conn, name="Ada Lovelace", byline="   ")
+    approved(client, conn, first_name="Ada", last_name="Lovelace",
+             byline="   ")
     body = client.get("/piece/1").text
     assert "Ada Lovelace" not in body
     assert "ada@example.com" not in body
@@ -50,8 +56,8 @@ def test_cleared_byline_puts_no_name_on_the_piece_page(client, conn):
 
 def test_contact_data_never_reaches_the_wall_whatever_the_byline(client, conn):
     for byline in ("lovelace_dev", "", "Ada Lovelace"):
-        submit(client, name="Ada Lovelace", email="ada@example.com",
-               byline=byline)
+        submit(client, first_name="Ada", last_name="Lovelace",
+               email="ada@example.com", byline=byline)
     for sid in (1, 2, 3):
         db.claim_next_queued(conn)
         db.mark_rendered(conn, sid, "static", f"{sid}.png")
@@ -67,7 +73,8 @@ def test_contact_data_never_reaches_the_wall_whatever_the_byline(client, conn):
 
 
 def test_moderation_queue_shows_the_byline_beside_the_contact_name(client, conn):
-    submit(client, name="Ada Lovelace", byline="lovelace_dev")
+    submit(client, first_name="Ada", last_name="Lovelace",
+           byline="lovelace_dev")
     row = db.claim_next_queued(conn)
     db.mark_rendered(conn, row["id"], "static", "1.png")
     body = client.get("/admin", auth=AUTH).text
@@ -76,8 +83,8 @@ def test_moderation_queue_shows_the_byline_beside_the_contact_name(client, conn)
 
 
 def test_csv_export_gains_a_byline_column(client, conn):
-    submit(client, name="Ada Lovelace", email="ada@example.com",
-           byline="lovelace_dev")
+    submit(client, first_name="Ada", last_name="Lovelace",
+           email="ada@example.com", byline="lovelace_dev")
     resp = client.get("/admin/export.csv", auth=AUTH)
     header, first = resp.text.strip().splitlines()[:2]
     assert "byline" in header.split(",")

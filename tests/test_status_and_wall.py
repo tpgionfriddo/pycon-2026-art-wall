@@ -41,9 +41,9 @@ def test_status_page_renders(client):
 
 def test_wall_only_lists_approved(client, conn):
     submit(client)                       # 1: stays queued
-    submit(client, name="Grace", byline="Grace")   # 2: rendered only
-    submit(client, name="Mary", byline="Mary")     # 3: approved
-    submit(client, name="Edsger", byline="Edsger") # 4: rejected
+    submit(client, first_name="Grace", byline="Grace")   # 2: rendered only
+    submit(client, first_name="Mary", byline="Mary")     # 3: approved
+    submit(client, first_name="Edsger", byline="Edsger") # 4: rejected
 
     for sid in (2, 3, 4):
         conn.execute(

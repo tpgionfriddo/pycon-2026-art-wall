@@ -23,7 +23,8 @@ This repo is **single-context**:
 │   ├── 0003-webm-vp9-for-animated-pieces.md
 │   ├── 0004-cloud-vps-hosting.md
 │   ├── 0005-wall-tiles-fill-the-screen.md
-│   └── 0006-jetbrains-branded-light-theme.md
+│   ├── 0006-jetbrains-branded-light-theme.md
+│   └── 0007-containerised-stack-drives-the-host-daemon.md
 ├── artwall/                           ← server, worker, db, config, templates, static
 └── worker/                            ← sandbox Dockerfile + render harness
 ```

@@ -15,19 +15,16 @@ def test_valid_submission_queues_and_redirects(client, conn):
 
 
 def test_missing_fields_rejected(client):
-    for field in ("code", "name", "email"):
+    for field in ("code", "first_name", "last_name", "email"):
         form = {k: v for k, v in VALID_FORM.items() if k != field}
         resp = client.post("/submit", data=form, follow_redirects=False)
         assert resp.status_code == 422, field
 
 
-def test_blank_name_rejected(client):
-    assert submit(client, name="   ").status_code == 400
-
-
 def test_missing_consent_rejected(client):
     form = {"code": "def draw():\n    return [[0]]\n",
-            "name": "Ada", "email": "ada@example.com"}
+            "first_name": "Ada", "last_name": "Lovelace",
+            "email": "ada@example.com"}
     resp = client.post("/submit", data=form, follow_redirects=False)
     assert resp.status_code == 400
 

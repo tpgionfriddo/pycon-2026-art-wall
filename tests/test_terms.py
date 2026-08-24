@@ -21,7 +21,8 @@ def test_submission_form_links_to_the_terms(client):
 
 def test_acceptance_is_still_required(client):
     form = {"code": "def draw():\n    return [[0]]\n",
-            "name": "Ada", "email": "ada@example.com", "byline": "Ada"}
+            "first_name": "Ada", "last_name": "Lovelace",
+            "email": "ada@example.com", "byline": "Ada"}
     assert client.post("/submit", data=form,
                        follow_redirects=False).status_code == 400
     assert submit(client).status_code == 303

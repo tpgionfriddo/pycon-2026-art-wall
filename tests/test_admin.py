@@ -24,7 +24,7 @@ def test_approve_and_reject(client, conn):
     assert resp.status_code == 303
     assert db.get_submission(conn, sid)["status"] == "approved"
 
-    sid2 = rendered(client, conn, name="Grace")
+    sid2 = rendered(client, conn, first_name="Grace", last_name="Hopper")
     client.post(f"/admin/submissions/{sid2}/reject", auth=AUTH,
                 follow_redirects=False)
     assert db.get_submission(conn, sid2)["status"] == "rejected"
@@ -39,7 +39,8 @@ def test_moderation_only_touches_rendered(client, conn):
 
 def test_csv_export_all_submissions(client, conn):
     submit(client)
-    sid = rendered(client, conn, name="Grace", email="grace@example.com")
+    sid = rendered(client, conn, first_name="Grace", last_name="Hopper",
+                   email="grace@example.com")
     db.moderate(conn, sid, approved=False)  # rejected rows are kept + exported
 
     resp = client.get("/admin/export.csv", auth=AUTH)

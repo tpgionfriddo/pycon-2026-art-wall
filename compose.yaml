@@ -91,7 +91,8 @@ services:
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
       # The worker drives the host daemon rather than running one of its
-      # own. ADR-0002 describes the worker as host-side; this changes that.
+      # own. ADR-0002 describes the worker as host-side; ADR-0007 records
+      # this shape, and why a privileged daemon-in-a-daemon was not used.
       - ${ARTWALL_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
       - ${ARTWALL_SCRATCH_DIR:-/tmp/artwall-scratch}:${ARTWALL_SCRATCH_DIR:-/tmp/artwall-scratch}
 
