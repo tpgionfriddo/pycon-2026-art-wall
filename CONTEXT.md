@@ -7,8 +7,15 @@ submit it with contact info, and approved pieces appear on a big-screen wall.
 
 **Piece**:
 One rendered artwork on the wall — the output media (static image or looping
-video) plus its author attribution.
+video) plus its byline, where the attendee kept one.
 _Avoid_: artwork, image, entry
+
+**Byline**:
+The public credit shown with a piece on the wall — a name or handle the
+attendee chooses. Normally the name they gave, but they may substitute
+anything or clear it entirely; a cleared byline means the piece is displayed
+unattributed. Never their email.
+_Avoid_: display name, username, attribution
 
 **Submission**:
 The Python source code plus the attendee's contact info and consent, as
@@ -30,11 +37,22 @@ _Avoid_: renderer, runner, sandbox (the sandbox is a property of the worker)
 The fullscreen web page on the booth TV showing the grid of approved pieces.
 _Avoid_: display, screen, gallery
 
+**Tile**:
+One piece's square place on the wall. All tiles are the same size, computed
+from the piece count and the viewport so the pieces always fill the screen
+(ADR-0005); nothing ever scrolls off.
+_Avoid_: cell, thumbnail, slot
+
 **Moderation**:
 The mandatory human review of a rendered submission before it may appear on
 the wall. A submission is either approved or rejected; nothing is displayed
 unreviewed.
 _Avoid_: review, curation, vetting
+
+**Takedown**:
+The removal of an already-approved piece from the wall. Distinct from a
+rejection, which was never displayed to anyone.
+_Avoid_: unapprove, delete, hide
 
 **Supported Packages**:
 The single fixed list of Python packages available to submissions — exactly

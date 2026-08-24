@@ -7,6 +7,10 @@ __pycache__/
 data/
 .background_output_*.txt
 
+# Specs and issues. Public repo; the specs map unfixed weaknesses in detail.
+# See docs/agents/issue-tracker.md — this is not backed up by pushing.
+.scratch/
+
 # IDE state: machine-local absolute paths (interpreter, data sources).
 .idea/
 # Local toolchain pin; nothing in this project uses the JVM.
