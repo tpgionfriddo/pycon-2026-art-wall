@@ -24,3 +24,23 @@ itself, and the Portainer git stack the whole thing is deployed as are decided
 in ADR-0007, which also carries the abuse-guard consequence above forward: the
 submission rate limit only counts attendees rather than the proxy because the
 proxy rewrites `X-Forwarded-For` and the server trusts it.
+
+## Amendment (2026-08-25): a short link in front of the public URL
+
+The decision above has the booth QR point at the public URL. It now points at
+a **Submit URL** — a short link on a domain the booth owns, redirected there —
+and the wall itself carries that QR with the address printed under it, rather
+than paper alone. Two reasons: the link is short enough to read off a TV and
+type by hand, and moving the stack (a new domain, the laptop fallback) is then
+a redirect rather than a reprint of everything already handed out.
+
+The cost is a second thing that can be wrong, and one this repo cannot fix:
+the redirect lives wherever that domain is administered. The runbook carries
+the symptom ("The QR on the wall goes nowhere") and says as much.
+
+`ARTWALL_SUBMIT_URL` configures it, and its default in `artwall/config.py` is
+this event's link — the one event-specific value in the code, and a knowing
+exception to "the code must not assume anything VPS-specific" above, which is
+about the *stack's* address rather than the poster's. A value with no scheme
+is scanned as `https://`; the laptop fallback sets an explicit `http://`, and
+the wall then shows the scheme too, because it has to be typed.

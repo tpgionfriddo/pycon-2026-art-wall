@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+import segno
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +28,18 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 # Committed page assets (the wall logo). Kept apart from the rendered-media
 # mount, which serves untracked runtime state (ADR-0006).
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+def qr_svg(target: str) -> str:
+    """A QR for `target` as an SVG that is all shape and no size: the wall
+    gives it a box in CSS, and a big screen scales it without a second render.
+    Nor does it carry its quiet zone — whatever displays it supplies that.
+    """
+    buf = io.BytesIO()
+    segno.make(target, error="m").save(buf, kind="svg", scale=1, border=0,
+                                       xmldecl=False, svgversion=None,
+                                       unit="", omitsize=True)
+    return buf.getvalue().decode()
 
 
 class RateLimiter:
@@ -135,6 +148,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     limiter = RateLimiter(settings.rate_limit_max, settings.rate_limit_window_s)
+    wall_qr = qr_svg(settings.qr_target)
     security = HTTPBasic()
 
     def get_conn():
@@ -219,7 +233,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/wall")
     def wall_page(request: Request):
-        return templates.TemplateResponse(request, "wall.html", {})
+        return templates.TemplateResponse(request, "wall.html", {
+            "submit_url_shown": settings.submit_url_shown,
+        })
+
+    @app.get("/qr.svg")
+    def submit_qr():
+        """The Submit URL as a QR: the wall's invitation, and a URL of its own
+        so the same code can be printed for the booth table. Encoded once at
+        startup, since the address is configuration and cannot change under a
+        running process."""
+        return Response(wall_qr, media_type="image/svg+xml")
 
     @app.get("/api/wall")
     def wall_json(conn=Depends(get_conn)):

@@ -75,6 +75,9 @@ services:
       # Unset locks the admin pages silently, which is only discovered at
       # the moment someone needs to moderate. Fail the stack instead.
       ARTWALL_ADMIN_PASSWORD: ${ARTWALL_ADMIN_PASSWORD:?set it in .env}
+      # Where the wall's QR sends attendees. Unset — including set to
+      # nothing — falls back to the default in `artwall/config.py`.
+      ARTWALL_SUBMIT_URL: ${ARTWALL_SUBMIT_URL:-}
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
 

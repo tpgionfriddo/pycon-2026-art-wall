@@ -125,6 +125,27 @@ rest.
    `…-proxy-1` log. If one never issued, the wall can run on `http://` for
    now; attendees on mobile data are the ones who need HTTPS.
 
+## The QR on the wall goes nowhere
+
+**Symptom.** Scanning the code in the wall's bottom-left corner lands on an
+error page, or on something that is not the submission page.
+
+**Why.** The QR encodes `ARTWALL_SUBMIT_URL` — by design *not* this stack's
+own address but a short link on a domain the booth owns, so that moving the
+stack is a redirect change rather than a reprint. So either the redirect
+behind that link points somewhere stale, or the variable is wrong.
+
+1. **Type the address printed under the QR** into a phone. If that fails the
+   same way, the redirect behind the short link is what needs fixing, and it
+   is fixed wherever that link is administered — not here.
+2. **If the printed address is the wrong one**, `ARTWALL_SUBMIT_URL` is
+   wrong: correct it and restart `…-server-1`. The address is read once at
+   startup, so nothing changes until it restarts.
+3. **Right now, either way:** attendees can reach the submission page at the
+   stack's own address, and a moderator with a laptop can read it off the
+   browser. The wall works regardless — this breaks new submissions, not the
+   pieces already on it.
+
 ## Attendees are told "Too many submissions"
 
 **Symptom.** Someone who has submitted nothing, or one piece, is refused
