@@ -73,9 +73,11 @@ Vocabulary: see [CONTEXT.md](../CONTEXT.md). Key decisions with rationale:
   the page never scrolls, nothing is ever hidden or rotated out (ADR-0005).
   Size changes animate (~0.5 s).
 - `<img>` for static, muted autoplaying looping `<video>` for animated.
-- All five pages share the JetBrains branding — logo-gradient accents and
-  JetBrains Mono for headings/code. Submit, status, piece, and admin use
-  light surfaces; the wall alone uses a dark ground (ADR-0006 as amended).
+- All six pages share the JetBrains branding: JetBrains Mono for
+  headings/code and `#6B57FF` as the single interactive colour. Headings are
+  near-black; the logo gradient is not used as an accent anywhere. The five
+  light pages are submit, status, piece, terms and admin; the wall alone uses
+  a dark ground and carries the PyCharm logo (ADR-0006 as amended).
 
 ## 5. Hosting (see ADR-0004)
 

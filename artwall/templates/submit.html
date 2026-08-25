@@ -101,8 +101,9 @@
     border-top: 1px solid #d8d8e0; flex: 0 0 auto; }
   #pkg code { color: #19191c; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
   /* Below the two columns' combined flex basis they stack instead. The page
-     is allowed to scroll here — there is no side-by-side row to fit into — so
-     the editor takes a cap of its own rather than a share of the viewport. */
+     is allowed to scroll here, because there is no side-by-side row to fit
+     into. The editor takes a cap of its own rather than a share of the
+     viewport. */
   @media (max-width: 800px) {
     body { height: auto; min-height: 100vh; }
     main { flex-direction: column; }
