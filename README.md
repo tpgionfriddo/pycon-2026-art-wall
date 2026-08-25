@@ -61,6 +61,7 @@ Environment variables:
 | `ARTWALL_DATA_DIR` | `data` | SQLite DB + rendered media |
 | `ARTWALL_WORKER_IMAGE` | `artwall-worker` | sandbox image tag |
 | `ARTWALL_SCRATCH_DIR` | *(unset — system temp)* | base for the worker's per-job scratch |
+| `ARTWALL_SUBMIT_URL` | `go.adeptask.com/pycon26` | address behind the wall's QR, and the text under it |
 | `ARTWALL_SITE_ADDRESS` | `:80` | what the proxy answers to; a bare domain turns TLS on |
 | `ARTWALL_HTTP_PORT` | `80` | host port for the proxy's HTTP listener |
 | `ARTWALL_HTTPS_PORT` | `443` | host port for the proxy's HTTPS listener |
@@ -113,6 +114,7 @@ hours. Certificate issuance needs the name to resolve to the box and ports
 | `ARTWALL_ADMIN_PASSWORD` | the moderator password — this is the only place it exists |
 | `ARTWALL_SITE_ADDRESS` | the bare domain, e.g. `artwall.example.com`; this is the switch that turns TLS on |
 | `ARTWALL_DATA_DIR` | an absolute path outside the stack's own directory, e.g. `/srv/artwall/data` |
+| `ARTWALL_SUBMIT_URL` | the short link on the wall's QR, if it is not the default |
 
 Leave the two port variables unset. They default to 80 and 443, which is what
 the certificate challenge needs and what a browser will try.

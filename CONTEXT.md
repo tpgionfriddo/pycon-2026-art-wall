@@ -66,6 +66,14 @@ The removal of an already-approved piece from the wall. Distinct from a
 rejection, which was never displayed to anyone.
 _Avoid_: unapprove, delete, hide
 
+**Submit URL**:
+The address the wall's QR sends an attendee to, printed under it in text so it
+can also be typed. Not the wall's own address: a short link on a domain the
+booth owns, redirected at the public URL (ADR-0004's second amendment), which
+is why it is configuration — `ARTWALL_SUBMIT_URL` — rather than something the
+server knows about itself.
+_Avoid_: short link, call to action, booth URL
+
 **Supported Packages**:
 The single fixed list of Python packages available to submissions — exactly
 those that work both in the preview (Pyodide/micropip) and in the render

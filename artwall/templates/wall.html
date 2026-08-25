@@ -11,6 +11,15 @@
         /* The wall alone is dark; the other four pages stay light (ADR-0006). */
         :root {
             color-scheme: dark;
+
+            /* The QR's module area, the quiet zone around it, and the panel
+               that holds both. The grid reserves the panel's width, so the
+               panel may never be wider than this — which is why the address
+               under the QR is capped to the same box and wraps instead. */
+            --qr: clamp(128px, 15vh, 240px);
+            --qr-quiet: calc(var(--qr) / 7);      /* 4 modules of a v3 symbol */
+            --qr-box: calc(var(--qr) + 2 * var(--qr-quiet));
+            --qr-panel: calc(var(--qr-box) + 24px);
         }
 
         #logo {
@@ -61,7 +70,12 @@
             justify-content: center;
             align-content: center;
             gap: 6px;
-            padding: 6px;
+            /* Room for the QR panel on the left, rather than tiles behind it:
+               ADR-0005 keeps "nothing is ever hidden" exactly, and on a wide
+               screen the tile size is usually height-bound anyway, so the
+               reservation costs the pieces nothing. `layout()` reads this back
+               rather than assuming it. */
+            padding: 6px 6px 6px calc(var(--qr-panel) + 20px);
         }
 
         .tile {
@@ -102,6 +116,50 @@
             pointer-events: none;
         }
 
+        /* The wall is the only invitation an attendee gets, so the Submit URL
+           never scrolls away: the bottom-left corner, in space the grid
+           reserves for it. It is decoration in front of links, so it takes no
+           clicks of its own. */
+        #submit-url {
+            position: fixed;
+            left: 14px;
+            bottom: 14px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.72);
+        }
+
+        /* The QR is encoded without its quiet zone — this white padding is
+           that zone, and a scanner needs all four modules of it. */
+        #qr {
+            display: block;
+            width: var(--qr);
+            aspect-ratio: 1;
+            height: auto;
+            padding: var(--qr-quiet);
+            border-radius: 6px;
+            background: white;
+        }
+
+        /* Capped to the QR's box, so a long address wraps rather than widen
+           the panel past the column the grid reserved for it. The size is
+           taken off the QR for the same reason: it keeps the default address
+           on one line at any screen size. */
+        #submit-url-text {
+            max-width: var(--qr-box);
+            font-family: "JetBrains Mono", ui-monospace, monospace;
+            font-size: calc(var(--qr) / 12);
+            letter-spacing: 0.02em;
+            text-align: center;
+            overflow-wrap: anywhere;
+            color: white;
+        }
+
         #toast {
             position: fixed;
             left: 50%;
@@ -135,6 +193,10 @@
     </div>
 </header>
 <div id="grid"></div>
+<aside id="submit-url">
+    <img src="/qr.svg" alt="QR code to the submission page." id="qr">
+    <span id="submit-url-text">{{ submit_url_shown }}</span>
+</aside>
 <div id="empty">No pieces yet — be the first on the wall!</div>
 <div id="toast"></div>
 
@@ -176,8 +238,12 @@
         // largest uniform square size such that all n tiles fit the grid area
         const n = known.size;
         if (!n) return;
-        const gap = 6, pad = 6;
-        const W = grid.clientWidth - 2 * pad, H = grid.clientHeight - 2 * pad;
+        const gap = 6;
+        const box = getComputedStyle(grid);      // the QR's column is padding
+        const W = grid.clientWidth
+            - parseFloat(box.paddingLeft) - parseFloat(box.paddingRight);
+        const H = grid.clientHeight
+            - parseFloat(box.paddingTop) - parseFloat(box.paddingBottom);
         let best = 0;
         for (let cols = 1; cols <= n; cols++) {
             const rows = Math.ceil(n / cols);
