@@ -72,3 +72,14 @@ def test_moderation_is_disclosed_before_the_details_are_handed_over(client):
     assert note == sentence
     instructions = re.findall(rf'<p>{re.escape(sentence)}</p>', page)
     assert len(instructions) == 2, "the modal and the panel each carry it once"
+
+
+def test_the_terms_do_not_send_a_reader_into_a_second_submit_page(client):
+    """The consent link opens `/terms` in a new tab, so the submit page is
+    still sitting behind it holding the editor buffer, the booted runtime and
+    the preview that armed the submit button. A link back to `/` from here
+    loads a fresh, empty submit page in this tab instead of returning anyone
+    anywhere, leaving two submit tabs and a guess about which one has the
+    work in it. Closing the tab is the way back.
+    """
+    assert 'href="/"' not in client.get("/terms").text
