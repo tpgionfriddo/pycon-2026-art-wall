@@ -31,6 +31,18 @@
   main { flex: 1; display: flex; min-height: 0; }
   #left { flex: 1 1 420px; display: flex; flex-direction: column;
     min-width: 0; min-height: 0; border-right: 1px solid #d8d8e0; }
+  /* Its own thin strip above the editor rather than a seventh control in
+     #bar, where a seven-option select would push the gate message onto a
+     second line in a narrow column. Content height and no shrink, so below
+     the stacking breakpoint it costs page scroll rather than editor height,
+     and it wraps, so a wide select drops what follows onto a second line. */
+  #strip { display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+    border-bottom: 1px solid #d8d8e0; flex-wrap: wrap; flex: 0 0 auto;
+    font-size: 12px; color: #6f737a; }
+  #strip select { font-size: 12px; padding: 3px 6px; border-radius: 6px;
+    border: 1px solid #d8d8e0; background: #ffffff; color: #19191c;
+    font-family: inherit; max-width: 100%; }
+  #strip select:disabled { opacity: 0.4; cursor: default; }
   /* No height cap, and min-height: 0 so it can be squeezed rather than
      pushing its siblings out of view. flex: 1 makes it take whatever the
      column has left, so there is no dead space under the button bar either;
@@ -121,6 +133,22 @@
 </header>
 <main>
   <div id="left">
+    <div id="strip">
+      <label for="example-select">Load an example</label>
+      <!-- Rendered server-side, so the list is there before any script runs.
+           Disabled until the editor exists: an option cannot be honoured
+           without a document to put it in, and the select must never show a
+           piece the buffer does not hold. -->
+      <select id="example-select" disabled>
+        {% for group in examples.groups %}
+        <optgroup label="{{ group.heading }}">
+          {% for entry in group.entries %}
+          <option value="{{ entry.index }}">{{ entry.label }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </div>
     <div id="editor"></div>
     <div id="pkg">
       Contract: define exactly one of <code>draw()</code> (static) or
@@ -200,20 +228,13 @@
 const LOOP_MS = {{ (frames / fps * 1000) | int }};   // one animation loop
 const MICROPIP_PKGS = ["colour", "trimesh", "svgpathtools"];
 
-const STARTER = `# Define draw() for a static piece, or draw(t) for an animated one
-# (t goes 0.0 -> 1.0 over one loop). Return a numpy array (HxWx3, 0..1
-# floats or uint8), a matplotlib Figure, or a PIL Image.
-import numpy as np
-
-SIZE = 512
-
-def draw(t):
-    y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE
-    r = 0.5 + 0.5 * np.sin(2 * np.pi * (x + t))
-    g = 0.5 + 0.5 * np.sin(2 * np.pi * (y - t))
-    b = 0.5 + 0.5 * np.sin(2 * np.pi * (x * y + 2 * t))
-    return np.dstack([r, g, b])
-`;
+// Every example's source, in the order the select lists them, so an option's
+// value is its index here. The scaffold is entry 0 and is what the editor
+// opens with: it is a dropdown entry rather than a constant beside one, so
+// the select is honest about what is in the buffer and "start over" is
+// reachable by picking it again.
+const EXAMPLE_CODE = {{ examples.code | tojson }};
+const SCAFFOLD = 0;
 
 // Same normalize()/contract logic as the render worker harness.
 const HARNESS = `
@@ -326,7 +347,7 @@ const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1
 const { python } = await import("https://esm.sh/@codemirror/lang-python@6.1.6");
 
 const view = new EditorView({
-  doc: STARTER,
+  doc: EXAMPLE_CODE[SCAFFOLD],
   parent: $("editor"),
   extensions: [
     basicSetup, python(),
@@ -342,6 +363,43 @@ const view = new EditorView({
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); preview(); }
 });
+
+// ---------------------------------------------------------- example picker
+// Live from here on, which is well before Pyodide finishes booting: loading
+// code needs no runtime. Picking one while the runtime is still coming up is
+// handled where preview() is armed.
+const exampleSelect = $("example-select");
+
+// The last code the page itself put in the editor. While the buffer still
+// matches it the attendee has typed nothing worth protecting, so switching is
+// silent and browsing every entry on a fresh page never prompts.
+let loadedCode = EXAMPLE_CODE[SCAFFOLD];
+let loadedPick = SCAFFOLD;
+
+function loadExample(index) {
+  const code = EXAMPLE_CODE[index];
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: code },
+  });
+  loadedCode = code;
+  loadedPick = index;
+  // Submit disarms for free: the editor's change listener above reopens the
+  // preview gate on any document change, this one included.
+}
+
+exampleSelect.addEventListener("change", () => {
+  const picked = Number(exampleSelect.value);
+  if (view.state.doc.toString() !== loadedCode
+      && !confirm("Replace your code with this example? "
+                  + "What you have written will be lost.")) {
+    exampleSelect.value = String(loadedPick);   // select must match the buffer
+    return;
+  }
+  loadExample(picked);
+});
+
+exampleSelect.value = String(SCAFFOLD);
+exampleSelect.disabled = false;
 
 // ------------------------------------------------------------ Pyodide boot
 let pyodide, pySetup, pyRender;

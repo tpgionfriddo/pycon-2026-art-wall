@@ -21,12 +21,43 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import db
-from .config import FPS, FRAMES, SUPPORTED_PACKAGES, Settings
+from .config import (EXAMPLE_GROUPS, EXAMPLES, EXAMPLES_DIR, FPS, FRAMES,
+                     SUPPORTED_PACKAGES, Settings)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 # Committed page assets (the wall logo). Kept apart from the rendered-media
 # mount, which serves untracked runtime state (ADR-0006).
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+def _examples_for_page() -> dict:
+    """The dropdown's contents, read off disk once at import.
+
+    Delivered inline in the page rather than from an endpoint: it is a few
+    kilobytes against a Pyodide boot that already pulls megabytes, and it
+    means the switcher works before the runtime has finished loading.
+
+    Split into the markup's part and the script's part. The `<select>` is
+    rendered server-side so it is populated before any module script runs,
+    and each option carries its index into `code`.
+    """
+    groups, index = [], 0
+    for heading, count in EXAMPLE_GROUPS:
+        entries = []
+        for label_index in range(index, index + count):
+            entries.append({"index": label_index,
+                            "label": EXAMPLES[label_index][1]})
+        groups.append({"heading": heading, "entries": entries})
+        index += count
+    if index != len(EXAMPLES):
+        raise RuntimeError(
+            f"EXAMPLE_GROUPS covers {index} of {len(EXAMPLES)} EXAMPLES")
+    return {"groups": groups,
+            "code": [(EXAMPLES_DIR / filename).read_text()
+                     for filename, _ in EXAMPLES]}
+
+
+EXAMPLES_FOR_PAGE = _examples_for_page()
 
 
 class RateLimiter:
@@ -160,6 +191,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "packages": SUPPORTED_PACKAGES,
             "frames": FRAMES,
             "fps": FPS,
+            "examples": EXAMPLES_FOR_PAGE,
         })
 
     @app.get("/terms")

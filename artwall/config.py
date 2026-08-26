@@ -14,6 +14,36 @@ SUPPORTED_PACKAGES = [
     "colour", "trimesh", "svgpathtools",
 ]
 
+# The submission page's "Load an example" dropdown, in the order it shows
+# them, grouped by the headings below. The list is explicit rather than
+# derived from the directory for three reasons: attendee-facing labels stay
+# reviewable in one place, the order is literal rather than alphabetical, and
+# the files' own docstrings are internal notes written in a register this page
+# does not use. A file added here without a tuple is invisible on the page,
+# which is what `tests/test_examples.py` exists to catch.
+EXAMPLES_DIR = Path(__file__).parent / "examples"
+EXAMPLES = [
+    # Start here
+    ("00_scaffold.py", "Your piece"),
+    # Learn
+    ("01_still_image.py", "A still image"),
+    ("02_a_plot_as_art.py", "A plot as art"),
+    ("03_text_and_shapes.py", "Text and shapes"),
+    # Finished pieces
+    ("04_unfolding_spectrum.py", "Unfolding spectrum"),
+    ("05_spinning_torus.py", "Spinning torus"),
+    ("06_aquion_logo.py", "Aquion logo afloat"),
+]
+# Which of the above sit under each heading, in order. Kept apart from the
+# tuples so a heading cannot silently swallow an entry: every example belongs
+# to exactly one group, and the page renders the groups rather than the flat
+# list.
+EXAMPLE_GROUPS = [
+    ("Start here", 1),
+    ("Learn", 3),
+    ("Finished pieces", 3),
+]
+
 FRAMES, FPS = 150, 30          # 5 s perfect loop
 VIDEO_BOX = 512                # animated pieces fit in 512×512
 STATIC_BOX = 1024              # static pieces downscaled to fit 1024×1024
