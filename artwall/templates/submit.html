@@ -1,3 +1,19 @@
+{# The instructions, defined once and rendered twice: on arrival as a modal,
+   and afterwards as a closed panel in the strip. Two copies of this prose
+   would drift, and the moderation sentence in it is also the one beside the
+   consent tickbox, which has to stay identical to it. #}
+{% macro how_this_works() %}
+  <p>Define exactly one function: <code>draw()</code> for a still image, or
+    <code>draw(t)</code> for an animation, where t runs 0 to 1 over one
+    {{ frames // fps }} second loop.</p>
+  <p>Return a numpy array, a matplotlib Figure, or a PIL Image.</p>
+  <p>Press Preview to run your code. A successful preview is required before
+    you can submit.</p>
+  <p>Pieces are moderated before they appear on the wall.</p>
+  <p>Load an example to see working code, or use the
+    <a href="/prompt" target="_blank" rel="noopener">AI prompt</a> if you are
+    stuck.</p>
+{% endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,6 +59,29 @@
     border: 1px solid #d8d8e0; background: #ffffff; color: #19191c;
     font-family: inherit; max-width: 100%; }
   #strip select:disabled { opacity: 0.4; cursor: default; }
+  /* The panel is the same content as the arrival modal, reachable after it
+     has been dismissed. Closed by default: an attendee who has just read it
+     does not need it open, and the strip is one row. */
+  #how-panel > summary { cursor: pointer; color: #6B57FF; }
+  #how-panel[open] { flex: 1 1 100%; }
+  #how-panel .how-body { padding: 2px 0 6px; max-width: 60ch; }
+  /* A real dialog, so focus trapping, Esc and the backdrop come for free.
+     Shown on every load: the booth laptop is shared, and a once-per-browser
+     modal would be seen by the first attendee and nobody after them. */
+  #how-dialog { border: 1px solid #d8d8e0; border-radius: 10px; padding: 0;
+    max-width: 560px; color: #19191c; background: #ffffff; }
+  #how-dialog::backdrop { background: rgba(25, 25, 28, 0.45); }
+  #how-dialog h2 { margin: 0 0 8px; font-size: 15px;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 600; }
+  #how-dialog .how-body { padding: 18px 20px 4px; }
+  #how-dialog form { display: block; padding: 0 20px 18px;
+    text-align: right; }
+  #how-dialog button { background: #6B57FF; border-color: #6B57FF;
+    color: white; font-weight: 600; }
+  #how-dialog button:hover { background: #5240e0; border-color: #5240e0; }
+  .how-body p { font-size: 13px; color: #19191c; margin: 8px 0; line-height: 1.55; }
+  .how-body code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  .how-body a { color: #6B57FF; }
   /* No height cap, and min-height: 0 so it can be squeezed rather than
      pushing its siblings out of view. flex: 1 makes it take whatever the
      column has left, so there is no dead space under the button bar either;
@@ -123,10 +162,23 @@
     #left { border-right: 0; border-bottom: 1px solid #d8d8e0; }
     #right { overflow-y: visible; }
     #editor { flex: 0 0 auto; height: 60vh; }
+    /* The strip already wraps, so the panel drops to a second line here
+       without a rule of its own. Only the dialog needs one. */
+    #how-dialog { width: calc(100vw - 24px); max-height: 80vh; }
+    #how-dialog .how-body { overflow-y: auto; }
   }
 </style>
 </head>
 <body>
+<dialog id="how-dialog">
+  <div class="how-body">
+    <h2>How this works</h2>
+    {{ how_this_works() }}
+  </div>
+  <!-- method="dialog" closes it without JavaScript, so the button works even
+       if the module script never loads. -->
+  <form method="dialog"><button autofocus>Start</button></form>
+</dialog>
 <header>
   <h1>Code Art Wall: submit your piece</h1>
   <span id="status">loading Python runtime (pyodide)...</span>
@@ -148,6 +200,10 @@
         </optgroup>
         {% endfor %}
       </select>
+      <details id="how-panel">
+        <summary>How this works</summary>
+        <div class="how-body">{{ how_this_works() }}</div>
+      </details>
     </div>
     <div id="editor"></div>
     <div id="pkg">
@@ -342,6 +398,20 @@ for (const field of [firstNameField, lastNameField]) {
   });
 }
 
+// --------------------------------------------------- instructions on arrival
+// Shown on every load, with no storage. The booth laptop is shared, so a
+// once-per-browser modal would be seen by the first attendee and nobody
+// after them, with no way to reset it mid-shift. Every attendee arrives on a
+// fresh load, because the status page sends "Submit another piece" back here.
+const howDialog = $("how-dialog");
+
+// Esc and the Start button are handled by the dialog itself. A backdrop click
+// is not: it lands on the dialog element rather than on anything inside it.
+howDialog.addEventListener("click", e => {
+  if (e.target === howDialog) howDialog.close();
+});
+howDialog.showModal();
+
 // ------------------------------------------------------------- CodeMirror
 const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");
 const { python } = await import("https://esm.sh/@codemirror/lang-python@6.1.6");
@@ -363,6 +433,12 @@ const view = new EditorView({
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); preview(); }
 });
+
+// Dismissing the instructions puts the attendee in the editor, ready to type.
+// The editor is built after the dialog opens, so this covers both orders: it
+// waits if the dialog is still up, and catches up if it has already gone.
+if (howDialog.open) howDialog.addEventListener("close", () => view.focus());
+else view.focus();
 
 // ---------------------------------------------------------- example picker
 // Live from here on, which is well before Pyodide finishes booting: loading
