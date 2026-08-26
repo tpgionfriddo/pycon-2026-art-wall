@@ -74,18 +74,18 @@ pipeline, so the code must follow the contract exactly.
 ## Contract (must follow exactly)
 
 - Define exactly ONE top-level function, choosing one of:
-  - `def draw():` — a static piece.
-  - `def draw(t):` — an animated piece; `t` is a float sweeping 0.0 → 1.0
+  - `def draw():` for a static piece.
+  - `def draw(t):` for an animated piece; `t` is a float sweeping 0.0 → 1.0
     over one 5-second loop (150 frames at 30 fps).
 - `draw` must RETURN one of:
-  - a numpy array — shape `(H, W, 3)` or `(H, W, 4)`, either `uint8`
+  - a numpy array with shape `(H, W, 3)` or `(H, W, 4)`, either `uint8`
     (0–255) or floats in 0..1,
   - a matplotlib `Figure`, or
   - a PIL `Image`.
 - Animated pieces must loop perfectly: the frame at `t = 1.0` must be
   identical to the frame at `t = 0.0`. Drive every motion with periodic
   functions of `t` (e.g. phases like `2 * numpy.pi * t`, or integer
-  multiples of full rotations) — never with unbounded time.
+  multiples of full rotations). Never drive it with unbounded time.
 
 ## Supported Packages (nothing else)
 
@@ -112,7 +112,7 @@ or anything else.
 - Target a square canvas: 512×512 pixels for animated pieces, up to
   1024×1024 for static ones. (With matplotlib: e.g.
   `plt.subplots(figsize=(5.12, 5.12), dpi=100)`.)
-- Transparent backgrounds are supported and encouraged — pieces float on
+- Transparent backgrounds are supported and encouraged: pieces float on
   the wall. With matplotlib set `fig.patch.set_facecolor("none")` and
   `ax.set_facecolor("none")`; with numpy/PIL return an RGBA array/image
   with alpha 0 where the piece paints nothing. An opaque background is also
@@ -128,7 +128,7 @@ or anything else.
 
 ## Output format
 
-Reply with ONLY the complete Python code for the piece — no explanations,
+Reply with ONLY the complete Python code for the piece: no explanations,
 no markdown fences. Start with a one-line docstring naming the piece and
 whether it is static or animated.{% endraw %}</pre>
 </main>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moderation — Code Art Wall</title>
+<title>Moderation: Code Art Wall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
@@ -62,7 +62,7 @@
   {# Shown only when the poll is holding a reload back, so a page that has
      stopped keeping itself current always says so. A plain link: the reload it
      offers does not depend on the script that revealed it. #}
-  <a id="notice" href="/admin" hidden>out of date — refresh</a>
+  <a id="notice" href="/admin" hidden>out of date, refresh</a>
   <a class="export" href="/admin/export.csv">Export CSV</a>
 </header>
 {# `autoplay` is off for the on-the-wall section: it grows all event, and
@@ -76,10 +76,10 @@
     <img src="{{ s.media_url }}" alt="">
     {% endif %}
     <div class="meta">
-      <div class="who">#{{ s.id }} — {{ s.name }}</div>
+      <div class="who">#{{ s.id }}: {{ s.name }}</div>
       <div class="byline">wall byline:
         {%- if s.byline %} “{{ s.byline }}”
-        {%- else %} <span class="none">none — shown unattributed</span>{% endif %}
+        {%- else %} <span class="none">none, shown unattributed</span>{% endif %}
       </div>
       <div class="mail">{{ s.email }} · {{ s.created_at }}</div>
     </div>
@@ -126,7 +126,7 @@
     // The header's numbers are patched in place: that is what keeps the
     // stalled-queue signal honest on a page left open all event without
     // reloading over somebody once a minute. Cards can only come from the
-    // server's markup, so a changed grid needs a real reload — and when that
+    // server's markup, so a changed grid needs a real reload. When that
     // reload would not be a safe thing to do unasked, the header says so
     // instead and the moderator picks the moment.
     const board = document.getElementById("board");
@@ -173,7 +173,7 @@
     // matters most: a queue that has stopped moving produces no new cards, so
     // nothing else here would ever notice it. Its wording lives in the
     // template, which is why this wants the page and not a patch. Losing the
-    // signal needs no reload — drawHeader has already dropped it.
+    // signal needs no reload: drawHeader has already dropped it.
     function signalAppeared(state) {
         return Boolean(state.oldest_wait)
             && document.getElementById("oldest") === null;
