@@ -376,6 +376,16 @@ const exampleSelect = $("example-select");
 let loadedCode = EXAMPLE_CODE[SCAFFOLD];
 let loadedPick = SCAFFOLD;
 
+// Rises on every preview run. A run may only touch the canvas or the gate
+// while it is still the newest, so a slow package fetch from an abandoned
+// pick cannot blit its frame over a newer one: the select and the canvas
+// always agree.
+let previewGen = 0;
+// A pick made before the runtime finished booting. Its code goes into the
+// editor at once and the preview it was promised fires once boot completes;
+// without this an early pick silently does nothing and reads as broken.
+let previewWhenBooted = false;
+
 function loadExample(index) {
   const code = EXAMPLE_CODE[index];
   view.dispatch({
@@ -396,6 +406,10 @@ exampleSelect.addEventListener("change", () => {
     return;
   }
   loadExample(picked);
+  // Every pick runs. Picking a finished piece can start a package download
+  // reported only as "fetching packages...", which is accepted.
+  if (pyodide) preview();
+  else previewWhenBooted = true;
 });
 
 exampleSelect.value = String(SCAFFOLD);
@@ -468,13 +482,19 @@ async function loadPackagesFor(code) {
 }
 
 async function preview() {
-  if (!pyodide || $("preview-btn").disabled) return;
+  // No runtime means boot has not finished or has failed. It deliberately no
+  // longer refuses merely because the button is disabled: that is also true
+  // of a preview already in flight, and a newer pick has to be able to take
+  // one over.
+  if (!pyodide) return;
+  const gen = ++previewGen;             // this run is now the newest
   stopAnim();
   $("preview-btn").disabled = true;
   const code = view.state.doc.toString();
   try {
     status("fetching packages...");
     await loadPackagesFor(code);
+    if (gen !== previewGen) return;     // a newer pick took over mid-fetch
     status("running your code...");
     const nParams = pySetup(code);
     blitFrame(0);                       // first frame must succeed = the gate
@@ -487,16 +507,25 @@ async function preview() {
     previewedCode = code;
     setGate(true, "Preview succeeded. You can submit this code.");
   } catch (e) {
+    if (gen !== previewGen) return;     // an abandoned run's error is not news
     status("preview failed");
     log(e.message, true);
     revealConsole();
     previewedCode = null;
     setGate(false, "Preview failed. Fix the error and preview again.");
   } finally {
-    $("preview-btn").disabled = false;
+    // Whoever is newest owns the button.
+    if (gen === previewGen) $("preview-btn").disabled = false;
   }
 }
 $("preview-btn").addEventListener("click", preview);
+
+// A pick made while the runtime was still coming up. This is the foot of the
+// module on purpose: the boot await suspends everything below it, so firing
+// from inside the boot block would reach the animation state before it
+// exists. Nothing auto-runs on first load, because a successful preview arms
+// Submit and a fresh page must not be one click from submitting the scaffold.
+if (previewWhenBooted) preview();
 
 // --------------------------------------------------------------- submit
 $("submit-form").addEventListener("submit", e => {
