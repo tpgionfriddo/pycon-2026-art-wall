@@ -88,6 +88,7 @@
     background: #ffffff; color: #19191c;
     border: 1px solid #d8d8e0; border-radius: 6px; padding: 8px 10px;
     font-size: 13px; flex: 1 1 120px; min-width: 0; }
+  #moderation-note { font-size: 12px; color: #6f737a; max-width: 420px; }
   label.consent { font-size: 12px; color: #6f737a; display: flex; gap: 6px;
     align-items: center; max-width: 420px; }
   label.consent a { color: #6B57FF; }
@@ -171,12 +172,22 @@
           <input type="text" name="company" placeholder="Company (optional)"
                  aria-label="Company, optional">
         </div>
+        <!-- Said here, where the attendee is deciding whether to hand their
+             details over. Identical to the arrival modal's sentence: if one
+             changes, the other changes with it. -->
+        <span id="moderation-note">Pieces are moderated before they appear on
+          the wall.</span>
         <label class="consent">
           <input type="checkbox" name="consent" required>
           <!-- One span, so the label's flex gap falls between the box and the
-               sentence rather than before the full stop. -->
+               sentence rather than before the full stop. One checkbox covers
+               both documents, so /submit keeps its single consent field. The
+               privacy policy is the promoter's own published page, not one
+               this application serves. -->
           <span>I accept the <a href="/terms" target="_blank"
-            rel="noopener">terms and conditions</a>.</span>
+            rel="noopener">terms and conditions</a> and the
+            <a href="https://www.aquion.com.au/privacy" target="_blank"
+            rel="noopener">privacy policy</a>.</span>
         </label>
         <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
       </form>
