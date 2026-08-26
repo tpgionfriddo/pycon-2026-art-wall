@@ -3,7 +3,7 @@ reachable from the control that accepts it.
 """
 import re
 
-from .conftest import submit
+from .conftest import links_home, submit
 
 
 def test_terms_page_resolves(client):
@@ -82,4 +82,4 @@ def test_the_terms_do_not_send_a_reader_into_a_second_submit_page(client):
     anywhere, leaving two submit tabs and a guess about which one has the
     work in it. Closing the tab is the way back.
     """
-    assert 'href="/"' not in client.get("/terms").text
+    assert links_home(client.get("/terms").text) == []

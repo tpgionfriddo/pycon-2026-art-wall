@@ -6,6 +6,8 @@ needed.
 """
 from artwall.config import SUPPORTED_PACKAGES
 
+from .conftest import links_home
+
 
 def test_the_prompt_is_served(client):
     page = client.get("/prompt").text
@@ -34,4 +36,4 @@ def test_the_prompt_does_not_send_a_reader_into_a_second_submit_page(client):
     """Opened in a new tab for the same reason the terms are, and so carrying
     the same trap: see the matching test in `test_terms.py`.
     """
-    assert 'href="/"' not in client.get("/prompt").text
+    assert links_home(client.get("/prompt").text) == []

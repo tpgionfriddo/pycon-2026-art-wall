@@ -233,10 +233,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not consent:
             raise HTTPException(400, "Consent is required")
         if db.count_queued(conn) >= settings.max_queue_depth:
-            raise HTTPException(429, "Render queue is full — try again later")
+            raise HTTPException(429, "Render queue is full. Try again later.")
         ip = request.client.host if request.client else "unknown"
         if not limiter.allow(ip):
-            raise HTTPException(429, "Too many submissions — try again later")
+            raise HTTPException(429, "Too many submissions. Try again later.")
         submission_id = db.create_submission(
             conn, code, db.compose_name(first_name, last_name), email.strip(),
             consent, byline.strip(), first_name=first_name,

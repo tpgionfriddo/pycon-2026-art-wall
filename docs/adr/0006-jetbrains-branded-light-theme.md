@@ -53,15 +53,18 @@ The gradient is therefore no longer used anywhere in the stack. The wall's
 branding does not depend on it: the wall carries the actual PyCharm logo asset
 (previous amendment), which is stronger branding than a gradient quoting one.
 
-The page roster is now six, not the five this ADR's opening line counts: the
-terms page arrived after that line was written. Five of the six are light
-(submit, status, piece, terms, admin) and the wall is dark.
+The page roster is now seven, not the five this ADR's opening line counts:
+the terms page and the AI prompt page both arrived after that line was
+written. Six of the seven are light (submit, status, piece, terms, prompt,
+admin) and the wall is dark. Counting this wrong is the recurring failure
+here rather than a one-off, so the count is deliberately stated alongside the
+names: a number on its own is what went stale twice.
 
 Unchanged, and still the substance of this ADR:
 
 - JetBrains Mono for headings and code, on every page.
 - JetBrains purple `#6B57FF` as the single interactive color.
-- Light surfaces on the five light pages; the dark ground on the wall.
+- Light surfaces on the six light pages; the dark ground on the wall.
 - No logo embedding beyond the committed wall asset.
 
 Consequence: "gradient accents" is no longer the branding mechanism. The

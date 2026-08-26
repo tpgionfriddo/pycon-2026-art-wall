@@ -1,3 +1,4 @@
+import re
 import pytest
 from fastapi.testclient import TestClient
 
@@ -69,3 +70,14 @@ def approved(client, conn, **overrides) -> int:
     submission_id = rendered(client, conn, **overrides)
     db.moderate(conn, submission_id, approved=True)
     return submission_id
+
+def links_home(page: str) -> list[str]:
+    """Anchors on `page` that navigate to the submission page.
+
+    Matched as parsed hrefs rather than by searching for `href="/"`: single
+    quotes, a trailing `#` or a query string all reach the same page and none
+    of them contain that substring, so a substring check would go green on
+    the very trap it is meant to catch.
+    """
+    hrefs = re.findall(r"<a\b[^>]*?\bhref\s*=\s*[\"']([^\"']*)[\"']", page)
+    return [h for h in hrefs if h == "/" or h.startswith(("/#", "/?"))]
