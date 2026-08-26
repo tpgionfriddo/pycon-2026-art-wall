@@ -39,6 +39,7 @@ on disk. `samples/README.md` carries the mapping.
   Python. `CONTEXT.md` defines Example, Sample and Scaffold to keep that
   boundary legible.
 - Adding an Example means adding a tuple to `EXAMPLES` in
-  `artwall/config.py`. A file added without one is invisible on the page,
-  which is why `tests/test_examples.py` refuses to let the directory and the
-  list disagree.
+  `artwall/config.py` and naming it in one `EXAMPLE_GROUPS` heading. A file
+  missing from either is invisible on the page, so `tests/test_examples.py`
+  refuses to let the directory, the list and the groups disagree, and the
+  page fails at import rather than rendering a short dropdown.

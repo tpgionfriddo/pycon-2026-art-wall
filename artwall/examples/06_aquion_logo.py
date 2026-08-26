@@ -1,4 +1,5 @@
-"""Aquion logo afloat — animated. Bezier logo geometry + numpy water compositing."""
+"""Aquion logo afloat. Animated, Bezier logo geometry over a numpy water
+surface."""
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties

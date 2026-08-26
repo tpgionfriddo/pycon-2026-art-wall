@@ -1,4 +1,4 @@
-"""Spinning torus wireframe — animated. trimesh + matplotlib."""
+"""Spinning torus. Animated, a trimesh wireframe plotted with matplotlib."""
 import numpy as np
 import trimesh
 import matplotlib.pyplot as plt

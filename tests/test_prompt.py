@@ -4,6 +4,7 @@ Served by the application rather than linked, because `docs/` is excluded
 from the container images and the booth laptop is the one place the prompt is
 needed.
 """
+from artwall.config import SUPPORTED_PACKAGES
 
 
 def test_the_prompt_is_served(client):
@@ -16,3 +17,14 @@ def test_the_placeholder_reaches_the_page(client):
     """`{{DESIGN PROMPT}}` is what an attendee replaces, and it is also valid
     Jinja syntax, so it only survives because the block is raw."""
     assert "{{DESIGN PROMPT}}" in client.get("/prompt").text
+
+
+def test_the_prompt_names_exactly_the_supported_packages(client):
+    """The prompt hardcodes the package list, because it is quoted verbatim
+    and an attendee pastes it into a chat model. ADR-0001 makes drift between
+    the preview, the worker and this list the failure that matters, and this
+    is the only thing holding the third copy in step.
+    """
+    page = client.get("/prompt").text
+    for package in SUPPORTED_PACKAGES:
+        assert f"`{package}`" in page, package

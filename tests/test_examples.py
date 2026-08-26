@@ -7,7 +7,7 @@ attendee who came to make art.
 """
 import ast
 
-from artwall.config import EXAMPLES, EXAMPLES_DIR
+from artwall.config import EXAMPLE_GROUPS, EXAMPLES, EXAMPLES_DIR
 
 
 def test_every_example_resolves_to_a_file():
@@ -43,3 +43,18 @@ def test_labels_are_unique_and_non_empty():
 def test_the_scaffold_is_the_first_entry():
     """The editor opens with it, so the select has to agree on load."""
     assert EXAMPLES[0][0] == "00_scaffold.py"
+
+
+def test_the_groups_account_for_every_example_exactly_once():
+    """The dropdown renders the groups, not the flat list, so an example the
+    groups do not reach is invisible even though its tuple is present."""
+    grouped = [name for _, names in EXAMPLE_GROUPS for name in names]
+    assert sorted(grouped) == sorted(filename for filename, _ in EXAMPLES)
+    assert len(grouped) == len(set(grouped)), "an example is in two groups"
+
+
+def test_group_headings_are_unique_and_non_empty():
+    headings = [heading for heading, _ in EXAMPLE_GROUPS]
+    assert all(heading.strip() for heading in headings)
+    assert len(set(headings)) == len(headings)
+    assert all(names for _, names in EXAMPLE_GROUPS), "an empty group"

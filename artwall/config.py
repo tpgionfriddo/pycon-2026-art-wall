@@ -34,14 +34,18 @@ EXAMPLES = [
     ("05_spinning_torus.py", "Spinning torus"),
     ("06_aquion_logo.py", "Aquion logo afloat"),
 ]
-# Which of the above sit under each heading, in order. Kept apart from the
-# tuples so a heading cannot silently swallow an entry: every example belongs
-# to exactly one group, and the page renders the groups rather than the flat
-# list.
+# Which of the above sit under each dropdown heading, in order. Named rather
+# than counted: counts that happen to add up can still group the wrong files,
+# and nothing would say so. The page renders these groups rather than the flat
+# list, so an example missing from here is invisible even with a tuple above.
 EXAMPLE_GROUPS = [
-    ("Start here", 1),
-    ("Learn", 3),
-    ("Finished pieces", 3),
+    ("Start here", ["00_scaffold.py"]),
+    ("Learn", ["01_still_image.py",
+               "02_a_plot_as_art.py",
+               "03_text_and_shapes.py"]),
+    ("Finished pieces", ["04_unfolding_spectrum.py",
+                         "05_spinning_torus.py",
+                         "06_aquion_logo.py"]),
 ]
 
 FRAMES, FPS = 150, 30          # 5 s perfect loop

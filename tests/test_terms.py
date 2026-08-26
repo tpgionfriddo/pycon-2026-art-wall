@@ -64,7 +64,11 @@ def test_both_consent_documents_open_in_a_new_tab(client):
 
 
 def test_moderation_is_disclosed_before_the_details_are_handed_over(client):
-    """Kept identical to the arrival modal's sentence."""
-    page = client.get("/").text
-    assert "Pieces are moderated before they appear on the wall." in \
-        " ".join(page.split())
+    """Beside the tickbox, and word for word the sentence the instructions
+    carry. Asserting only that each is present would pass if one drifted."""
+    page = " ".join(client.get("/").text.split())
+    sentence = "Pieces are moderated before they appear on the wall."
+    note = re.search(r'<span id="moderation-note">(.*?)</span>', page).group(1)
+    assert note == sentence
+    instructions = re.findall(rf'<p>{re.escape(sentence)}</p>', page)
+    assert len(instructions) == 2, "the modal and the panel each carry it once"

@@ -1,7 +1,9 @@
+{# Said in two places that must agree: in the instructions, and again beside
+   the consent tickbox where the attendee decides whether to hand their
+   details over. One definition, so they cannot drift apart. #}
+{% set moderation_sentence = "Pieces are moderated before they appear on the wall." %}
 {# The instructions, defined once and rendered twice: on arrival as a modal,
-   and afterwards as a closed panel in the strip. Two copies of this prose
-   would drift, and the moderation sentence in it is also the one beside the
-   consent tickbox, which has to stay identical to it. #}
+   and afterwards as a closed panel in the strip. #}
 {% macro how_this_works() %}
   <p>Define exactly one function: <code>draw()</code> for a still image, or
     <code>draw(t)</code> for an animation, where t runs 0 to 1 over one
@@ -9,7 +11,7 @@
   <p>Return a numpy array, a matplotlib Figure, or a PIL Image.</p>
   <p>Press Preview to run your code. A successful preview is required before
     you can submit.</p>
-  <p>Pieces are moderated before they appear on the wall.</p>
+  <p>{{ moderation_sentence }}</p>
   <p>Load an example to see working code, or use the
     <a href="/prompt" target="_blank" rel="noopener">AI prompt</a> if you are
     stuck.</p>
@@ -256,11 +258,9 @@
           <input type="text" name="company" placeholder="Company (optional)"
                  aria-label="Company, optional">
         </div>
-        <!-- Said here, where the attendee is deciding whether to hand their
-             details over. Identical to the arrival modal's sentence: if one
-             changes, the other changes with it. -->
-        <span id="moderation-note">Pieces are moderated before they appear on
-          the wall.</span>
+        <!-- The same sentence the instructions carry, from one definition at
+             the top of this file. -->
+        <span id="moderation-note">{{ moderation_sentence }}</span>
         <label class="consent">
           <input type="checkbox" name="consent" required>
           <!-- One span, so the label's flex gap falls between the box and the

@@ -41,17 +41,22 @@ def _examples_for_page() -> dict:
     rendered server-side so it is populated before any module script runs,
     and each option carries its index into `code`.
     """
-    groups, index = [], 0
-    for heading, count in EXAMPLE_GROUPS:
-        entries = []
-        for label_index in range(index, index + count):
-            entries.append({"index": label_index,
-                            "label": EXAMPLES[label_index][1]})
-        groups.append({"heading": heading, "entries": entries})
-        index += count
-    if index != len(EXAMPLES):
+    # An option's value is its index into `code` below, so the flat order is
+    # what the script indexes and the groups are only how it is presented.
+    order = {filename: i for i, (filename, _) in enumerate(EXAMPLES)}
+    grouped = [name for _, names in EXAMPLE_GROUPS for name in names]
+    twice = sorted({name for name in grouped if grouped.count(name) > 1})
+    if twice:
+        raise RuntimeError(f"EXAMPLE_GROUPS lists {twice} in more than one group")
+    if sorted(grouped) != sorted(order):
         raise RuntimeError(
-            f"EXAMPLE_GROUPS covers {index} of {len(EXAMPLES)} EXAMPLES")
+            "EXAMPLE_GROUPS and EXAMPLES disagree about "
+            f"{sorted(set(order) ^ set(grouped))}")
+    labels = dict(EXAMPLES)
+    groups = [{"heading": heading,
+               "entries": [{"index": order[name], "label": labels[name]}
+                           for name in names]}
+              for heading, names in EXAMPLE_GROUPS]
     return {"groups": groups,
             "code": [(EXAMPLES_DIR / filename).read_text()
                      for filename, _ in EXAMPLES]}
