@@ -21,12 +21,48 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import db
-from .config import FPS, FRAMES, SUPPORTED_PACKAGES, Settings
+from .config import (EXAMPLE_GROUPS, EXAMPLES, EXAMPLES_DIR, FPS, FRAMES,
+                     SUPPORTED_PACKAGES, Settings)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 # Committed page assets (the wall logo). Kept apart from the rendered-media
 # mount, which serves untracked runtime state (ADR-0006).
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+def _examples_for_page() -> dict:
+    """The dropdown's contents, read off disk once at import.
+
+    Delivered inline in the page rather than from an endpoint: it is a few
+    kilobytes against a Pyodide boot that already pulls megabytes, and it
+    means the switcher works before the runtime has finished loading.
+
+    Split into the markup's part and the script's part. The `<select>` is
+    rendered server-side so it is populated before any module script runs,
+    and each option carries its index into `code`.
+    """
+    # An option's value is its index into `code` below, so the flat order is
+    # what the script indexes and the groups are only how it is presented.
+    order = {filename: i for i, (filename, _) in enumerate(EXAMPLES)}
+    grouped = [name for _, names in EXAMPLE_GROUPS for name in names]
+    twice = sorted({name for name in grouped if grouped.count(name) > 1})
+    if twice:
+        raise RuntimeError(f"EXAMPLE_GROUPS lists {twice} in more than one group")
+    if sorted(grouped) != sorted(order):
+        raise RuntimeError(
+            "EXAMPLE_GROUPS and EXAMPLES disagree about "
+            f"{sorted(set(order) ^ set(grouped))}")
+    labels = dict(EXAMPLES)
+    groups = [{"heading": heading,
+               "entries": [{"index": order[name], "label": labels[name]}
+                           for name in names]}
+              for heading, names in EXAMPLE_GROUPS]
+    return {"groups": groups,
+            "code": [(EXAMPLES_DIR / filename).read_text()
+                     for filename, _ in EXAMPLES]}
+
+
+EXAMPLES_FOR_PAGE = _examples_for_page()
 
 
 class RateLimiter:
@@ -160,6 +196,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "packages": SUPPORTED_PACKAGES,
             "frames": FRAMES,
             "fps": FPS,
+            "examples": EXAMPLES_FOR_PAGE,
         })
 
     @app.get("/terms")
@@ -167,6 +204,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Served by the application itself so consent survives the marketing
         site being unreachable, and travels with the booth-laptop fallback."""
         return templates.TemplateResponse(request, "terms.html", {})
+
+    @app.get("/prompt")
+    def prompt_page(request: Request):
+        """The prompt for the booth laptop's AI assistant, served rather than
+        linked for the same reason `terms_page` is: `docs/` is excluded from
+        the images, so at the booth the documentation copy does not exist."""
+        return templates.TemplateResponse(request, "prompt.html", {})
 
     @app.post("/submit")
     def submit(request: Request,
@@ -189,10 +233,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not consent:
             raise HTTPException(400, "Consent is required")
         if db.count_queued(conn) >= settings.max_queue_depth:
-            raise HTTPException(429, "Render queue is full — try again later")
+            raise HTTPException(429, "Render queue is full. Try again later.")
         ip = request.client.host if request.client else "unknown"
         if not limiter.allow(ip):
-            raise HTTPException(429, "Too many submissions — try again later")
+            raise HTTPException(429, "Too many submissions. Try again later.")
         submission_id = db.create_submission(
             conn, code, db.compose_name(first_name, last_name), email.strip(),
             consent, byline.strip(), first_name=first_name,

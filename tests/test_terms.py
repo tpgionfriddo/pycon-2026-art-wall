@@ -1,7 +1,9 @@
 """The terms page. Consent rests on this text, so it has to exist and be
 reachable from the control that accepts it.
 """
-from .conftest import submit
+import re
+
+from .conftest import links_home, submit
 
 
 def test_terms_page_resolves(client):
@@ -10,9 +12,13 @@ def test_terms_page_resolves(client):
     assert "terms" in resp.text.lower()
 
 
-def test_terms_page_is_an_unmistakable_placeholder(client):
-    """Until ticket 13 pastes the real text, nobody may mistake it for done."""
-    assert "PLACEHOLDER" in client.get("/terms").text
+def test_terms_page_carries_the_real_competition_terms(client):
+    """The inverse of the gate this test used to hold: the supplied wording is
+    in place, so the placeholder warning must be gone."""
+    page = client.get("/terms").text
+    assert "Aquion Pty Ltd" in page
+    assert "ABN 57 094 985 136" in page
+    assert "PLACEHOLDER" not in page
 
 
 def test_submission_form_links_to_the_terms(client):
@@ -26,3 +32,54 @@ def test_acceptance_is_still_required(client):
     assert client.post("/submit", data=form,
                        follow_redirects=False).status_code == 400
     assert submit(client).status_code == 303
+
+
+def _consent_sentence(page: str) -> str:
+    """The consent label's prose, tags stripped and whitespace collapsed.
+
+    Asserted on the rendered sentence rather than the markup because the
+    sentence wraps across source lines, and the thing that matters to an
+    attendee is what they read.
+    """
+    label = re.search(r'<label class="consent">(.*?)</label>', page, re.S).group(1)
+    label = re.sub(r"<!--.*?-->", "", label, flags=re.S)
+    # Tags drop out rather than becoming spaces: the markup deliberately puts
+    # no whitespace before the full stop, and this must not invent any.
+    return " ".join(re.sub(r"<[^>]+>", "", label).split())
+
+
+def test_consent_names_both_documents(client):
+    page = client.get("/").text
+    assert _consent_sentence(page) == \
+        "I accept the terms and conditions and the privacy policy."
+
+
+def test_both_consent_documents_open_in_a_new_tab(client):
+    """Losing the editor buffer to a legal document is not acceptable."""
+    page = client.get("/").text
+    for href in ('/terms', 'https://www.aquion.com.au/privacy'):
+        link = re.search(rf'<a\s+href="{re.escape(href)}"[^>]*>', page, re.S).group(0)
+        assert 'target="_blank"' in link
+        assert 'rel="noopener"' in link
+
+
+def test_moderation_is_disclosed_before_the_details_are_handed_over(client):
+    """Beside the tickbox, and word for word the sentence the instructions
+    carry. Asserting only that each is present would pass if one drifted."""
+    page = " ".join(client.get("/").text.split())
+    sentence = "Pieces are moderated before they appear on the wall."
+    note = re.search(r'<span id="moderation-note">(.*?)</span>', page).group(1)
+    assert note == sentence
+    instructions = re.findall(rf'<p>{re.escape(sentence)}</p>', page)
+    assert len(instructions) == 2, "the modal and the panel each carry it once"
+
+
+def test_the_terms_do_not_send_a_reader_into_a_second_submit_page(client):
+    """The consent link opens `/terms` in a new tab, so the submit page is
+    still sitting behind it holding the editor buffer, the booted runtime and
+    the preview that armed the submit button. A link back to `/` from here
+    loads a fresh, empty submit page in this tab instead of returning anyone
+    anywhere, leaving two submit tabs and a guess about which one has the
+    work in it. Closing the tab is the way back.
+    """
+    assert links_home(client.get("/terms").text) == []

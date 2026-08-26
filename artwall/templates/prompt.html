@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI prompt: Code Art Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ffffff; color: #19191c;
+    font-family: -apple-system, "Segoe UI", sans-serif; line-height: 1.6; }
+  header { padding: 10px 16px; background: #ffffff;
+    border-bottom: 1px solid #d8d8e0;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; color: #19191c;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 18px 64px; }
+  p { margin: 8px 0; font-size: 14px; }
+  code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  #bar { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px;
+    flex-wrap: wrap; }
+  button { background: #6B57FF; border: 1px solid #6B57FF; color: white;
+    border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; }
+  button:hover { background: #5240e0; border-color: #5240e0; }
+  #copied { font-size: 12px; color: #6f737a; }
+  #copied.ok { color: #14804a; }
+  #copied.bad { color: #c81f4d; }
+  /* Scrolls in its own right rather than running the page wide: the prompt
+     has long lines and this page is read on a phone as often as a laptop. */
+  #prompt { border: 1px solid #d8d8e0; border-radius: 8px; background: #f7f7fa;
+    padding: 12px 14px; overflow-x: auto; max-height: 60vh; overflow-y: auto;
+    font: 12px/1.55 "JetBrains Mono", "SF Mono", Menlo, monospace;
+    white-space: pre-wrap; margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI prompt</h1>
+</header>
+<main>
+  <p>Paste this into the AI assistant on the booth laptop, or any chat model.
+    Replace <code>{{ '{{DESIGN PROMPT}}' }}</code> with a description of what
+    you want to make.</p>
+  <p>The rules in it are the same ones the wall enforces, so the code it
+    writes should preview and submit without changes.</p>
+
+  <div id="bar">
+    <button id="copy-btn" type="button">Copy the prompt</button>
+    <span id="copied"></span>
+  </div>
+
+  <!-- The prompt itself, and the only copy of it. `docs/ART_PROMPT.md` used
+       to hold this text and now points here: `docs/` is excluded from the
+       images, so at the booth that copy does not exist. Served by the
+       application for the same reason the terms are, namely that it has to
+       survive the marketing site being unreachable and travel with the
+       booth-laptop fallback.
+
+       Reproduced as written. It is a technical document quoted verbatim, so
+       the page's own copy rules stop at it. -->
+  <pre id="prompt">{% raw %}You are an expert Python creative coder. Write a single, self-contained
+Python script that generates a piece of algorithmic art for a conference
+"Code Art Wall". The piece described below will be rendered by an automated
+pipeline, so the code must follow the contract exactly.
+
+## The piece to create
+
+{{DESIGN PROMPT}}
+
+## Contract (must follow exactly)
+
+- Define exactly ONE top-level function, choosing one of:
+  - `def draw():` for a static piece.
+  - `def draw(t):` for an animated piece; `t` is a float sweeping 0.0 → 1.0
+    over one 5-second loop (150 frames at 30 fps).
+- `draw` must RETURN one of:
+  - a numpy array with shape `(H, W, 3)` or `(H, W, 4)`, either `uint8`
+    (0–255) or floats in 0..1,
+  - a matplotlib `Figure`, or
+  - a PIL `Image`.
+- Animated pieces must loop perfectly: the frame at `t = 1.0` must be
+  identical to the frame at `t = 0.0`. Drive every motion with periodic
+  functions of `t` (e.g. phases like `2 * numpy.pi * t`, or integer
+  multiples of full rotations). Never drive it with unbounded time.
+
+## Supported Packages (nothing else)
+
+`numpy`, `matplotlib`, `Pillow` (PIL), `pandas`, `shapely`, `scipy`,
+`colour`, `trimesh`, `svgpathtools`
+
+Only these packages plus the Python standard library are installed.
+Do NOT use `py5`, `Processing`, `cairo`, `pygame`, `OpenCV`, `torch`,
+or anything else.
+
+## Hard environment rules
+
+- The code runs once in an offline sandbox: no network access, no file
+  reads or writes, no user input, no `plt.show()`, no windows.
+- Deterministic output is required: seed every random generator explicitly
+  (e.g. `rng = numpy.random.default_rng(42)`) so re-renders are identical.
+- Budget: the whole render (all 150 frames for animation) must finish in
+  well under 60 seconds on one CPU core with 1 GB of RAM. For `draw(t)`
+  keep one frame under ~0.2 s: precompute anything expensive at module
+  level, outside `draw`.
+
+## Canvas and style guidance
+
+- Target a square canvas: 512×512 pixels for animated pieces, up to
+  1024×1024 for static ones. (With matplotlib: e.g.
+  `plt.subplots(figsize=(5.12, 5.12), dpi=100)`.)
+- Transparent backgrounds are supported and encouraged: pieces float on
+  the wall. With matplotlib set `fig.patch.set_facecolor("none")` and
+  `ax.set_facecolor("none")`; with numpy/PIL return an RGBA array/image
+  with alpha 0 where the piece paints nothing. An opaque background is also
+  fine if the design calls for it.
+- With matplotlib: hide axes (`ax.axis("off")`), fix limits explicitly
+  (essential for animation so the view doesn't jitter between frames),
+  keep `ax.set_aspect("equal")`, and use
+  `fig.subplots_adjust(left=0, right=1, bottom=0, top=1)` so the art
+  fills the frame.
+- Aim for something visually striking on a large screen: bold shapes,
+  rich color palettes, high contrast. Avoid text unless the design asks
+  for it.
+
+## Output format
+
+Reply with ONLY the complete Python code for the piece: no explanations,
+no markdown fences. Start with a one-line docstring naming the piece and
+whether it is static or animated.{% endraw %}</pre>
+</main>
+<script>
+  const btn = document.getElementById("copy-btn");
+  const said = document.getElementById("copied");
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(
+        document.getElementById("prompt").textContent);
+      said.textContent = "copied";
+      said.className = "ok";
+    } catch (e) {
+      // Clipboard access can be refused, and a button that silently does
+      // nothing is worse than one that says so.
+      said.textContent = "could not copy. Select the text and copy it.";
+      said.className = "bad";
+    }
+  });
+</script>
+</body>
+</html>

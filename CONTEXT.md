@@ -76,3 +76,26 @@ _Avoid_: allowed libraries, whitelist
 The rule that submission code defines exactly one of `draw()` (static) or
 `draw(t)` (animated, `t` sweeping 0→1 over one perfect loop).
 _Avoid_: API, interface
+
+**Example**:
+One of the pieces of working code an attendee can load into the editor from
+the submission page's "Load an example" dropdown. Examples live in
+`artwall/examples/`, are listed in `EXAMPLES` in `artwall/config.py`, and are
+attendee-facing: their comments and labels follow the same copy rules as the
+page around them. Some teach one corner of the Draw Contract; the rest are
+finished pieces.
+_Avoid_: sample, demo, template
+
+**Sample**:
+Internal art in `samples/`. Test fixtures for the end-to-end render test and
+art kept for the repository's own sake. Never attendee-facing, so a sample's
+docstring is a note to whoever maintains it. Three former samples became
+Examples; the distinction is who reads them, not what they draw.
+_Avoid_: example, fixture
+
+**Scaffold**:
+The Example the editor opens with. An Example like any other, first in the
+dropdown, so re-picking it is how an attendee starts over. It is the one
+Example that returns opaque three-channel colour rather than
+transparent-cornered RGBA.
+_Avoid_: starter, seed, boilerplate, default

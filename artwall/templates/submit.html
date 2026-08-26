@@ -1,3 +1,21 @@
+{# Said in two places that must agree: in the instructions, and again beside
+   the consent tickbox where the attendee decides whether to hand their
+   details over. One definition, so they cannot drift apart. #}
+{% set moderation_sentence = "Pieces are moderated before they appear on the wall." %}
+{# The instructions, defined once and rendered twice: on arrival as a modal,
+   and afterwards as a closed panel in the strip. #}
+{% macro how_this_works() %}
+  <p>Define exactly one function: <code>draw()</code> for a still image, or
+    <code>draw(t)</code> for an animation, where t runs 0 to 1 over one
+    {{ frames // fps }} second loop.</p>
+  <p>Return a numpy array, a matplotlib Figure, or a PIL Image.</p>
+  <p>Press Preview to run your code. A successful preview is required before
+    you can submit.</p>
+  <p>{{ moderation_sentence }}</p>
+  <p>Load an example to see working code, or use the
+    <a href="/prompt" target="_blank" rel="noopener">AI prompt</a> if you are
+    stuck.</p>
+{% endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,6 +49,41 @@
   main { flex: 1; display: flex; min-height: 0; }
   #left { flex: 1 1 420px; display: flex; flex-direction: column;
     min-width: 0; min-height: 0; border-right: 1px solid #d8d8e0; }
+  /* Its own thin strip above the editor rather than a seventh control in
+     #bar, where a seven-option select would push the gate message onto a
+     second line in a narrow column. Content height and no shrink, so below
+     the stacking breakpoint it costs page scroll rather than editor height,
+     and it wraps, so a wide select drops what follows onto a second line. */
+  #strip { display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+    border-bottom: 1px solid #d8d8e0; flex-wrap: wrap; flex: 0 0 auto;
+    font-size: 12px; color: #6f737a; }
+  #strip select { font-size: 12px; padding: 3px 6px; border-radius: 6px;
+    border: 1px solid #d8d8e0; background: #ffffff; color: #19191c;
+    font-family: inherit; max-width: 100%; }
+  #strip select:disabled { opacity: 0.4; cursor: default; }
+  /* The panel is the same content as the arrival modal, reachable after it
+     has been dismissed. Closed by default: an attendee who has just read it
+     does not need it open, and the strip is one row. */
+  #how-panel > summary { cursor: pointer; color: #6B57FF; }
+  #how-panel[open] { flex: 1 1 100%; }
+  #how-panel .how-body { padding: 2px 0 6px; max-width: 60ch; }
+  /* A real dialog, so focus trapping, Esc and the backdrop come for free.
+     Shown on every load: the booth laptop is shared, and a once-per-browser
+     modal would be seen by the first attendee and nobody after them. */
+  #how-dialog { border: 1px solid #d8d8e0; border-radius: 10px; padding: 0;
+    max-width: 560px; color: #19191c; background: #ffffff; }
+  #how-dialog::backdrop { background: rgba(25, 25, 28, 0.45); }
+  #how-dialog h2 { margin: 0 0 8px; font-size: 15px;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 600; }
+  #how-dialog .how-body { padding: 18px 20px 4px; }
+  #how-dialog form { display: block; padding: 0 20px 18px;
+    text-align: right; }
+  #how-dialog button { background: #6B57FF; border-color: #6B57FF;
+    color: white; font-weight: 600; }
+  #how-dialog button:hover { background: #5240e0; border-color: #5240e0; }
+  .how-body p { font-size: 13px; color: #19191c; margin: 8px 0; line-height: 1.55; }
+  .how-body code { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  .how-body a { color: #6B57FF; }
   /* No height cap, and min-height: 0 so it can be squeezed rather than
      pushing its siblings out of view. flex: 1 makes it take whatever the
      column has left, so there is no dead space under the button bar either;
@@ -88,6 +141,7 @@
     background: #ffffff; color: #19191c;
     border: 1px solid #d8d8e0; border-radius: 6px; padding: 8px 10px;
     font-size: 13px; flex: 1 1 120px; min-width: 0; }
+  #moderation-note { font-size: 12px; color: #6f737a; max-width: 420px; }
   label.consent { font-size: 12px; color: #6f737a; display: flex; gap: 6px;
     align-items: center; max-width: 420px; }
   label.consent a { color: #6B57FF; }
@@ -101,8 +155,9 @@
     border-top: 1px solid #d8d8e0; flex: 0 0 auto; }
   #pkg code { color: #19191c; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
   /* Below the two columns' combined flex basis they stack instead. The page
-     is allowed to scroll here — there is no side-by-side row to fit into — so
-     the editor takes a cap of its own rather than a share of the viewport. */
+     is allowed to scroll here, because there is no side-by-side row to fit
+     into. The editor takes a cap of its own rather than a share of the
+     viewport. */
   @media (max-width: 800px) {
     body { height: auto; min-height: 100vh; }
     main { flex-direction: column; }
@@ -110,16 +165,49 @@
     #left { border-right: 0; border-bottom: 1px solid #d8d8e0; }
     #right { overflow-y: visible; }
     #editor { flex: 0 0 auto; height: 60vh; }
+    /* The strip already wraps, so the panel drops to a second line here
+       without a rule of its own. Only the dialog needs one. */
+    #how-dialog { width: calc(100vw - 24px); max-height: 80vh; }
+    #how-dialog .how-body { overflow-y: auto; }
   }
 </style>
 </head>
 <body>
+<dialog id="how-dialog">
+  <div class="how-body">
+    <h2>How this works</h2>
+    {{ how_this_works() }}
+  </div>
+  <!-- method="dialog" closes it without JavaScript, so the button works even
+       if the module script never loads. -->
+  <form method="dialog"><button autofocus>Start</button></form>
+</dialog>
 <header>
   <h1>Code Art Wall: submit your piece</h1>
   <span id="status">loading Python runtime (pyodide)...</span>
 </header>
 <main>
   <div id="left">
+    <div id="strip">
+      <label for="example-select">Load an example</label>
+      <!-- Rendered server-side, so the list is there before any script runs.
+           Disabled until the editor exists: an option cannot be honoured
+           without a document to put it in, and the select must never show a
+           piece the buffer does not hold. -->
+      <select id="example-select" disabled>
+        {% for group in examples.groups %}
+        <optgroup label="{{ group.heading }}">
+          {% for entry in group.entries %}
+          <option value="{{ entry.index }}">{{ entry.label }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+      <details id="how-panel">
+        <summary>How this works</summary>
+        <div class="how-body">{{ how_this_works() }}</div>
+      </details>
+    </div>
     <div id="editor"></div>
     <div id="pkg">
       Contract: define exactly one of <code>draw()</code> (static) or
@@ -171,12 +259,20 @@
           <input type="text" name="company" placeholder="Company (optional)"
                  aria-label="Company, optional">
         </div>
+        <!-- The same sentence the instructions carry, from one definition at
+             the top of this file. -->
+        <span id="moderation-note">{{ moderation_sentence }}</span>
         <label class="consent">
           <input type="checkbox" name="consent" required>
           <!-- One span, so the label's flex gap falls between the box and the
-               sentence rather than before the full stop. -->
+               sentence rather than before the full stop. One checkbox covers
+               both documents, so /submit keeps its single consent field. The
+               privacy policy is the promoter's own published page, not one
+               this application serves. -->
           <span>I accept the <a href="/terms" target="_blank"
-            rel="noopener">terms and conditions</a>.</span>
+            rel="noopener">terms and conditions</a> and the
+            <a href="https://www.aquion.com.au/privacy" target="_blank"
+            rel="noopener">privacy policy</a>.</span>
         </label>
         <button id="submit-btn" type="submit" disabled>Submit to the wall</button>
       </form>
@@ -189,20 +285,13 @@
 const LOOP_MS = {{ (frames / fps * 1000) | int }};   // one animation loop
 const MICROPIP_PKGS = ["colour", "trimesh", "svgpathtools"];
 
-const STARTER = `# Define draw() for a static piece, or draw(t) for an animated one
-# (t goes 0.0 -> 1.0 over one loop). Return a numpy array (HxWx3, 0..1
-# floats or uint8), a matplotlib Figure, or a PIL Image.
-import numpy as np
-
-SIZE = 512
-
-def draw(t):
-    y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE
-    r = 0.5 + 0.5 * np.sin(2 * np.pi * (x + t))
-    g = 0.5 + 0.5 * np.sin(2 * np.pi * (y - t))
-    b = 0.5 + 0.5 * np.sin(2 * np.pi * (x * y + 2 * t))
-    return np.dstack([r, g, b])
-`;
+// Every example's source, in the order the select lists them, so an option's
+// value is its index here. The scaffold is entry 0 and is what the editor
+// opens with: it is a dropdown entry rather than a constant beside one, so
+// the select is honest about what is in the buffer and "start over" is
+// reachable by picking it again.
+const EXAMPLE_CODE = {{ examples.code | tojson }};
+const SCAFFOLD = 0;
 
 // Same normalize()/contract logic as the render worker harness.
 const HARNESS = `
@@ -310,12 +399,26 @@ for (const field of [firstNameField, lastNameField]) {
   });
 }
 
+// --------------------------------------------------- instructions on arrival
+// Shown on every load, with no storage. The booth laptop is shared, so a
+// once-per-browser modal would be seen by the first attendee and nobody
+// after them, with no way to reset it mid-shift. Every attendee arrives on a
+// fresh load, because the status page sends "Submit another piece" back here.
+const howDialog = $("how-dialog");
+
+// Esc and the Start button are handled by the dialog itself. A backdrop click
+// is not: it lands on the dialog element rather than on anything inside it.
+howDialog.addEventListener("click", e => {
+  if (e.target === howDialog) howDialog.close();
+});
+howDialog.showModal();
+
 // ------------------------------------------------------------- CodeMirror
 const { basicSetup, EditorView } = await import("https://esm.sh/codemirror@6.0.1");
 const { python } = await import("https://esm.sh/@codemirror/lang-python@6.1.6");
 
 const view = new EditorView({
-  doc: STARTER,
+  doc: EXAMPLE_CODE[SCAFFOLD],
   parent: $("editor"),
   extensions: [
     basicSetup, python(),
@@ -331,6 +434,63 @@ const view = new EditorView({
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); preview(); }
 });
+
+// Dismissing the instructions puts the attendee in the editor, ready to type.
+// The editor is built after the dialog opens, so this covers both orders: it
+// waits if the dialog is still up, and catches up if it has already gone.
+if (howDialog.open) howDialog.addEventListener("close", () => view.focus());
+else view.focus();
+
+// ---------------------------------------------------------- example picker
+// Live from here on, which is well before Pyodide finishes booting: loading
+// code needs no runtime. Picking one while the runtime is still coming up is
+// handled where preview() is armed.
+const exampleSelect = $("example-select");
+
+// The last code the page itself put in the editor. While the buffer still
+// matches it the attendee has typed nothing worth protecting, so switching is
+// silent and browsing every entry on a fresh page never prompts.
+let loadedCode = EXAMPLE_CODE[SCAFFOLD];
+let loadedPick = SCAFFOLD;
+
+// Rises on every preview run. A run may only touch the canvas or the gate
+// while it is still the newest, so a slow package fetch from an abandoned
+// pick cannot blit its frame over a newer one: the select and the canvas
+// always agree.
+let previewGen = 0;
+// A pick made before the runtime finished booting. Its code goes into the
+// editor at once and the preview it was promised fires once boot completes;
+// without this an early pick silently does nothing and reads as broken.
+let previewWhenBooted = false;
+
+function loadExample(index) {
+  const code = EXAMPLE_CODE[index];
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: code },
+  });
+  loadedCode = code;
+  loadedPick = index;
+  // Submit disarms for free: the editor's change listener above reopens the
+  // preview gate on any document change, this one included.
+}
+
+exampleSelect.addEventListener("change", () => {
+  const picked = Number(exampleSelect.value);
+  if (view.state.doc.toString() !== loadedCode
+      && !confirm("Replace your code with this example? "
+                  + "What you have written will be lost.")) {
+    exampleSelect.value = String(loadedPick);   // select must match the buffer
+    return;
+  }
+  loadExample(picked);
+  // Every pick runs. Picking a finished piece can start a package download
+  // reported only as "fetching packages...", which is accepted.
+  if (pyodide) preview();
+  else previewWhenBooted = true;
+});
+
+exampleSelect.value = String(SCAFFOLD);
+exampleSelect.disabled = false;
 
 // ------------------------------------------------------------ Pyodide boot
 let pyodide, pySetup, pyRender;
@@ -399,13 +559,19 @@ async function loadPackagesFor(code) {
 }
 
 async function preview() {
-  if (!pyodide || $("preview-btn").disabled) return;
+  // No runtime means boot has not finished or has failed. It deliberately no
+  // longer refuses merely because the button is disabled: that is also true
+  // of a preview already in flight, and a newer pick has to be able to take
+  // one over.
+  if (!pyodide) return;
+  const gen = ++previewGen;             // this run is now the newest
   stopAnim();
   $("preview-btn").disabled = true;
   const code = view.state.doc.toString();
   try {
     status("fetching packages...");
     await loadPackagesFor(code);
+    if (gen !== previewGen) return;     // a newer pick took over mid-fetch
     status("running your code...");
     const nParams = pySetup(code);
     blitFrame(0);                       // first frame must succeed = the gate
@@ -418,16 +584,25 @@ async function preview() {
     previewedCode = code;
     setGate(true, "Preview succeeded. You can submit this code.");
   } catch (e) {
+    if (gen !== previewGen) return;     // an abandoned run's error is not news
     status("preview failed");
     log(e.message, true);
     revealConsole();
     previewedCode = null;
     setGate(false, "Preview failed. Fix the error and preview again.");
   } finally {
-    $("preview-btn").disabled = false;
+    // Whoever is newest owns the button.
+    if (gen === previewGen) $("preview-btn").disabled = false;
   }
 }
 $("preview-btn").addEventListener("click", preview);
+
+// A pick made while the runtime was still coming up. This is the foot of the
+// module on purpose: the boot await suspends everything below it, so firing
+// from inside the boot block would reach the animation state before it
+// exists. Nothing auto-runs on first load, because a successful preview arms
+// Submit and a fresh page must not be one click from submitting the scaffold.
+if (previewWhenBooted) preview();
 
 // --------------------------------------------------------------- submit
 $("submit-form").addEventListener("submit", e => {

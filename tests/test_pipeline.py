@@ -18,14 +18,16 @@ from artwall.worker import process_one
 SAMPLES_DIR = Path(__file__).parent.parent / "samples"
 IMAGE = "artwall-worker"
 
-# every contract-compliant sample; py5_orbits.py is unsupported by design
+# Every contract-compliant sample; py5_orbits.py is unsupported by design.
+# Three pieces that used to be here now live in `artwall/examples/`, and are
+# deliberately not covered by this module: it is skipped without Docker and
+# the sandbox image, so at the booth it protects nothing. What guards them is
+# `tests/test_examples.py`, which always runs.
 SAMPLES = {
     "flow_field.py": "static",
     "circle_mosaic.py": "static",
     "adeptask_logo.py": "static",
     "plasma_shader.py": "animated",
-    "torus_wireframe.py": "animated",
-    "adeptask_logo_ish.py": "animated",
     "neon_cat.py": "animated",
     "stick_dance.py": "animated",
 }

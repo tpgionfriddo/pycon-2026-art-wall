@@ -1,4 +1,4 @@
-"""Unfolding Spectrum — animated."""
+"""Unfolding spectrum. Animated, drawn straight into a numpy array."""
 import numpy as np
 
 _SIZE = 512

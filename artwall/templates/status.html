@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Submission #{{ submission.id }} — Code Art Wall</title>
+<title>Submission #{{ submission.id }}: Code Art Wall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
     background: #ffffff; color: #19191c; text-align: center;
     font-family: -apple-system, "Segoe UI", sans-serif; padding: 24px; }
   h1 { font-size: 20px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
-    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    color: #19191c; }
   #state { font-size: 17px; color: #6f737a; }
   #state.ok { color: #14804a; }
   #state.bad { color: #c81f4d; }
@@ -34,9 +34,9 @@
 </style>
 </head>
 <body>
-<h1>Submission #{{ submission.id }} — {{ submission.name }}</h1>
+<h1>Submission #{{ submission.id }}: {{ submission.name }}</h1>
 <div class="spinner" id="spinner"></div>
-<div id="state">checking status…</div>
+<div id="state">checking status...</div>
 <pre id="error"></pre>
 <div id="media"></div>
 <div id="links"><a href="/">Submit another piece</a> · <a href="/wall">See the wall</a></div>
@@ -44,10 +44,10 @@
 <script>
 const ID = {{ submission.id }};
 const MESSAGES = {
-  queued: "In the render queue — hold tight…",
-  rendering: "Rendering in the sandbox…",
+  queued: "In the render queue. Hold tight...",
+  rendering: "Rendering your piece...",
   rendered: "Rendered! Waiting for a human moderator to approve it.",
-  approved: "Approved — your piece is on the wall! 🎉",
+  approved: "Approved. Your piece is on the wall! 🎉",
   rejected: "This piece was not approved for the wall.",
   removed: "This piece has been taken down from the wall.",
   failed: "The render failed.",

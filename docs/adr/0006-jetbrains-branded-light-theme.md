@@ -34,3 +34,40 @@ This also reverses this ADR's rejection of shipping logo assets: the wall
 carries the PyCharm logo, so the asset is committed and served from a
 dedicated static mount (`artwall/static/`) rather than from the rendered-media
 directory, which is runtime state and is not in version control.
+
+## Amendment (2026-08-25): the logo gradient is retired as an accent
+
+This supersedes the 2026-08-24 amendment's closing claim that "the
+logo-gradient accent and JetBrains Mono are unchanged on every page". The
+gradient half of that is no longer true, and deliberately so.
+
+The submit page is the first thing an attendee sees, and the gradient made it
+read as decorated rather than written: a three-color rule under the header and
+a heading whose text was filled with the gradient instead of colored. Removing
+it there (issue 15) left that page the only plain one, so the treatment is now
+removed from the other four light pages too. Headings on submit, status, piece,
+terms and admin are near-black `#19191c`, and the header rule is a plain
+`1px solid #d8d8e0` matching the other rules already on those pages.
+
+The gradient is therefore no longer used anywhere in the stack. The wall's
+branding does not depend on it: the wall carries the actual PyCharm logo asset
+(previous amendment), which is stronger branding than a gradient quoting one.
+
+The page roster is now seven, not the five this ADR's opening line counts:
+the terms page and the AI prompt page both arrived after that line was
+written. Six of the seven are light (submit, status, piece, terms, prompt,
+admin) and the wall is dark. Counting this wrong is the recurring failure
+here rather than a one-off, so the count is deliberately stated alongside the
+names: a number on its own is what went stale twice.
+
+Unchanged, and still the substance of this ADR:
+
+- JetBrains Mono for headings and code, on every page.
+- JetBrains purple `#6B57FF` as the single interactive color.
+- Light surfaces on the six light pages; the dark ground on the wall.
+- No logo embedding beyond the committed wall asset.
+
+Consequence: "gradient accents" is no longer the branding mechanism. The
+branding is the typeface, the single interactive color, and the wall's logo.
+A future page should not reintroduce the gradient to look consistent with the
+others, because none of them carry it.

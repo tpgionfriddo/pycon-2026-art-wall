@@ -130,17 +130,19 @@ rest.
 **Symptom.** Someone who has submitted nothing, or one piece, is refused
 with **"Too many submissions — try again later"**.
 
-**Why.** Submissions are capped at five per ten minutes *per network
-address*, and venue Wi-Fi puts the whole hall behind one. Five submissions
-by anybody can lock out everyone else for ten minutes.
+**Why.** Submissions are capped *per network address*, not per person, and
+venue Wi-Fi puts the whole hall behind one. The default is sixty per ten
+minutes, set to clear a hall rather than a person, so seeing this at all
+means either an unusually busy ten minutes or one attendee submitting hard.
 
 **The fix, right now:** restart `…-server-1`. The counts are kept in memory,
 so a restart clears every one of them instantly. It costs nothing — no
 queued submission is lost and nothing on the wall changes. Do it as often as
 it takes.
 
-If it keeps happening, the cap wants raising, which is a stack change rather
-than a booth one.
+If it keeps happening, raise the ceiling: `ARTWALL_RATE_LIMIT_MAX` and
+`ARTWALL_RATE_LIMIT_WINDOW_S` are stack variables, so this is an edit in
+Portainer and a restart rather than a commit and a redeploy.
 
 ## The wall is stuttering
 
