@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% if piece.byline %}{{ piece.byline }} — {% endif %}Code Art Wall</title>
+<title>{% if piece.byline %}{{ piece.byline }}: {% endif %}Code Art Wall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
@@ -21,8 +21,8 @@
     padding: 16px; font: 13px/1.5 "JetBrains Mono", "SF Mono", Menlo, monospace;
     color: #19191c; box-sizing: border-box; display: none; }
   h1 { font-size: 18px; margin: 0; font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; font-weight: 800;
-    background: linear-gradient(90deg, #FC801D, #FF318C, #6B57FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  h1 span { color: #6f737a; background: none; -webkit-background-clip: initial; background-clip: initial; color: #6f737a; }
+    color: #19191c; }
+  h1 span { color: #6f737a; }
   button { background: #ffffff; color: #6B57FF; border: 1px solid #6B57FF;
     border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
   button:hover { background: #6B57FF; color: #ffffff; }
