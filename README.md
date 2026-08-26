@@ -61,6 +61,8 @@ Environment variables:
 | `ARTWALL_DATA_DIR` | `data` | SQLite DB + rendered media |
 | `ARTWALL_WORKER_IMAGE` | `artwall-worker` | sandbox image tag |
 | `ARTWALL_SCRATCH_DIR` | *(unset — system temp)* | base for the worker's per-job scratch |
+| `ARTWALL_RATE_LIMIT_MAX` | `60` | submissions one client address may make per window |
+| `ARTWALL_RATE_LIMIT_WINDOW_S` | `600` | the window, in seconds |
 | `ARTWALL_SITE_ADDRESS` | `:80` | what the proxy answers to; a bare domain turns TLS on |
 | `ARTWALL_HTTP_PORT` | `80` | host port for the proxy's HTTP listener |
 | `ARTWALL_HTTPS_PORT` | `443` | host port for the proxy's HTTPS listener |

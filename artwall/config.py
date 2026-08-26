@@ -29,7 +29,14 @@ class Settings:
     data_dir: Path = field(default_factory=lambda: Path("data"))
     admin_password: str = ""
     max_code_bytes: int = 32 * 1024
-    rate_limit_max: int = 5
+    # Per client address, and at a conference an address is not a person:
+    # venue wifi puts the whole hall behind one NAT. So the ceiling has to
+    # clear a hall, not a person. One attendee can still consume the whole
+    # hall's allowance, which is accepted — what stands between a flood and
+    # the booth is max_queue_depth below, and no piece reaches the wall
+    # without a moderator. What this uniquely protects is the render worker's
+    # time, and the worker drains faster than the moderator does.
+    rate_limit_max: int = 60
     rate_limit_window_s: int = 600
     max_queue_depth: int = 100
     worker_image: str = "artwall-worker"
@@ -51,9 +58,16 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         scratch = os.environ.get("ARTWALL_SCRATCH_DIR", "")
+        defaults = cls()
         return cls(
             data_dir=Path(os.environ.get("ARTWALL_DATA_DIR", "data")),
             admin_password=os.environ.get("ARTWALL_ADMIN_PASSWORD", ""),
             worker_image=os.environ.get("ARTWALL_WORKER_IMAGE", "artwall-worker"),
             scratch_dir=Path(scratch) if scratch else None,
+            # Tunable so a jammed booth is answered with a stack variable
+            # rather than a commit and a redeploy.
+            rate_limit_max=int(os.environ.get(
+                "ARTWALL_RATE_LIMIT_MAX", defaults.rate_limit_max)),
+            rate_limit_window_s=int(os.environ.get(
+                "ARTWALL_RATE_LIMIT_WINDOW_S", defaults.rate_limit_window_s)),
         )
