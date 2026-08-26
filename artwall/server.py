@@ -200,6 +200,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         site being unreachable, and travels with the booth-laptop fallback."""
         return templates.TemplateResponse(request, "terms.html", {})
 
+    @app.get("/prompt")
+    def prompt_page(request: Request):
+        """The prompt for the booth laptop's AI assistant, served rather than
+        linked for the same reason `terms_page` is: `docs/` is excluded from
+        the images, so at the booth the documentation copy does not exist."""
+        return templates.TemplateResponse(request, "prompt.html", {})
+
     @app.post("/submit")
     def submit(request: Request,
                code: str = Form(...),
