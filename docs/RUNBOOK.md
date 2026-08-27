@@ -216,7 +216,8 @@ is pre-specified so nobody has to debug it live, **in this order**:
    **Do not take pieces down to relieve it.** It would help, and it is the
    wrong trade: a takedown cannot be undone from the moderation queue (see
    below), so a temporary problem would permanently cost attendees their
-   place on the wall.
+   place on the wall. **Archive** beside it is no different: it is the button
+   for a new day, not for a slow wall, and it cannot be undone either.
 1. **Cap how many pieces animate at once.** *First*, because it works on
    pieces that are **already approved** — the whole wall improves at once.
    **There is no setting for this today**, so it needs someone who can ship
@@ -245,6 +246,35 @@ the CSV export, so the record of what the crowd actually saw survives.
 
 If you cannot reach `/admin` at all and a piece has to go **now**, the wall
 is a browser page — close the tab. An empty screen beats the wrong piece.
+
+## Starting the wall fresh for the next day
+
+The wall keeps every approved piece until somebody takes it off, so day two
+opens on day one's wall. **Archive** is how you empty it.
+
+1. `/admin` → the **On the wall** section → **Archive** on each piece.
+2. **Reload the wall on the TV.** As with a takedown, the wall does not remove
+   tiles by itself; the archive lands on the next load.
+
+There is one button per piece and no archive-the-whole-wall button, so a busy
+first day is a lot of clicking. Do this before the doors open rather than in
+front of a queue of attendees.
+
+**Archive is not Take down, and the two sit side by side on the card.** Read
+the labels. Both take a piece off the wall and neither can be undone here,
+but they mean different things afterwards: a taken-down piece was pulled
+because somebody objected to it, an archived one only ran out of day. The
+`archived` and `removed` counts in the header keep them apart, and both kinds
+stay in the CSV export.
+
+**An archived piece keeps its own page.** An attendee who saved the link to
+their piece on day one still finds their piece behind it on day two, with a
+line saying the wall has moved on. A takedown deliberately does not — that
+link stops resolving.
+
+**Nothing waiting for moderation is touched.** Yesterday's un-moderated
+submissions are still in the **Waiting for moderation** section, and still
+need approving or rejecting.
 
 ## Restarting a container
 
@@ -364,8 +394,9 @@ Don't spend booth time on any of these.
   their own status page. A `failed` count that climbs slowly is the system
   working. (A `failed` count climbing on *every* submission is not — that is
   "Every submission is failing" above.)
-- **A growing `rejected` or `removed` count.** That is the record, not a
-  fault.
+- **A growing `rejected`, `removed` or `archived` count.** That is the
+  record, not a fault. `archived` climbing by a whole wall at once is the
+  next day being started, above.
 - **Soft or slightly blurry tiles** when only a few pieces are up. Pieces
   are rendered no larger than a fixed cap, and the browser scales them up to
   fill the tile without distorting them. Expected (ADR-0005).

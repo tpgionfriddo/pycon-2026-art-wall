@@ -71,6 +71,32 @@ def approved(client, conn, **overrides) -> int:
     db.moderate(conn, submission_id, approved=True)
     return submission_id
 
+
+def every_status_but_approved(client, conn) -> dict[int, str]:
+    """One submission in each status an approved-only action must refuse.
+
+    Shared by the takedown and the archive tests. Both transitions are
+    reachable only from `approved`, so both have to refuse the same board, and
+    a status added to the lifecycle should widen the two of them together
+    rather than one of them quietly.
+
+    Returns the id-to-status map as it stands, for the caller to compare
+    against after trying its action on every row.
+    """
+    rendered(client, conn)                                                # 1
+    db.mark_failed(conn, rendered(client, conn, first_name="Grace"), "!")  # 2
+    db.moderate(conn, rendered(client, conn, first_name="Mary"),
+                approved=False)                                           # 3
+    db.create_submission(conn, "c", "Alan", "alan@x", True)                # 4
+    db.claim_next_queued(conn)                                    # -> rendering
+    submit(client, first_name="Edsger")                            # 5, queued
+
+    before = {r["id"]: r["status"] for r in db.list_all(conn)}
+    assert set(before.values()) == {"rendered", "failed", "rejected",
+                                    "rendering", "queued"}
+    return before
+
+
 def links_home(page: str) -> list[str]:
     """Anchors on `page` that navigate to the submission page.
 

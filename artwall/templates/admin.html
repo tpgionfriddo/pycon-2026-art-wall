@@ -45,6 +45,10 @@
   .approve button { background: #e6f9ef; border-color: #21D789; color: #14804a; }
   .reject button, .takedown button { background: #ffecf1;
     border-color: #FE2857; color: #c81f4d; }
+  /* Deliberately not the takedown's red. Archiving a piece says nothing
+     against it, and the two buttons sit next to each other. */
+  .archive button { background: #f7f7fa; border-color: #d8d8e0;
+    color: #19191c; }
   .empty { padding: 40px; text-align: center; color: #6f737a; grid-column: 1/-1; }
 </style>
 </head>
@@ -110,8 +114,13 @@
   <div class="cards">
     {% for s in on_wall %}
       {% call card(s, autoplay=false) %}
+      {# Take down stays leftmost, where a moderator reaching for it under
+         pressure has always found it. #}
       <form class="takedown" method="post" action="/admin/submissions/{{ s.id }}/takedown">
         <button>Take down</button>
+      </form>
+      <form class="archive" method="post" action="/admin/submissions/{{ s.id }}/archive">
+        <button>Archive</button>
       </form>
       {% endcall %}
     {% else %}

@@ -5,7 +5,7 @@ by anyone, and afterwards it matters which is which.
 """
 from artwall import db
 
-from .conftest import AUTH, approved, rendered, submit
+from .conftest import AUTH, approved, every_status_but_approved, rendered
 
 
 def _takedown(client, sid: int, **kwargs):
@@ -42,16 +42,7 @@ def test_taken_down_piece_page_stops_resolving(client, conn):
 
 def test_takedown_is_reachable_only_from_approved(client, conn):
     """Every state a takedown must refuse, in one pass."""
-    rendered(client, conn)                                          # 1
-    db.mark_failed(conn, rendered(client, conn, first_name="Grace"), "!")  # 2
-    db.moderate(conn, rendered(client, conn, first_name="Mary"), approved=False)  # 3
-    db.create_submission(conn, "c", "Alan", "alan@x", True)          # 4
-    db.claim_next_queued(conn)                                       # -> rendering
-    submit(client, first_name="Edsger")                                    # 5, queued
-
-    before = {r["id"]: r["status"] for r in db.list_all(conn)}
-    assert set(before.values()) == {"rendered", "failed", "rejected",
-                                    "rendering", "queued"}
+    before = every_status_but_approved(client, conn)
     for submission_id in before:
         assert _takedown(client, submission_id, auth=AUTH).status_code == 303
     assert {r["id"]: r["status"] for r in db.list_all(conn)} == before

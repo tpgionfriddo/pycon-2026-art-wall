@@ -138,7 +138,7 @@ def _waited_for(since: str | None) -> str | None:
 class ModerationState:
     """What the moderation page shows: its two grids, and its header."""
     pending: list           # rendered, awaiting the human review
-    on_wall: list           # approved, and a takedown away from leaving
+    on_wall: list           # approved, one takedown or archive from leaving
     counts: dict
     oldest_wait: str | None
 
@@ -274,11 +274,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def piece_page(request: Request, submission_id: int,
                    conn=Depends(get_conn)):
         row = db.get_submission(conn, submission_id)
-        if row is None or row["status"] != "approved":
+        # An archived piece keeps this page. It left the wall because the
+        # event moved on to a new day and not because anybody judged it, so
+        # an attendee who shared the link should still find their piece here.
+        # A takedown is the opposite case, and still resolves to nothing.
+        if row is None or row["status"] not in ("approved", "archived"):
             raise HTTPException(404)
         return templates.TemplateResponse(request, "piece.html", {
             "piece": _piece_json(row),
             "code": row["code"],
+            "archived": row["status"] == "archived",
         })
 
     # ---- admin (HTTP Basic on the page, its API routes, and the export) ----
@@ -327,6 +332,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
               dependencies=[Depends(require_admin)])
     def takedown(submission_id: int, conn=Depends(get_conn)):
         db.take_down(conn, submission_id)
+        return RedirectResponse("/admin", status_code=303)
+
+    @app.post("/admin/submissions/{submission_id}/archive",
+              dependencies=[Depends(require_admin)])
+    def archive(submission_id: int, conn=Depends(get_conn)):
+        """Retire a piece from the wall between days of the event.
+
+        Sits beside the takedown rather than replacing it because the two say
+        different things about the piece, and only one of them is a moderation
+        decision (see db.archive).
+        """
+        db.archive(conn, submission_id)
         return RedirectResponse("/admin", status_code=303)
 
     @app.get("/admin/export.csv", dependencies=[Depends(require_admin)])
