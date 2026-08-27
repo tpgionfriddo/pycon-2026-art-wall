@@ -83,3 +83,30 @@ def test_the_terms_do_not_send_a_reader_into_a_second_submit_page(client):
     work in it. Closing the tab is the way back.
     """
     assert links_home(client.get("/terms").text) == []
+
+
+def _clauses(page: str) -> list[str]:
+    return re.findall(r"<li>(.*?)</li>", page, re.S)
+
+
+def test_the_terms_carry_every_clause_of_the_supplied_instrument(client):
+    """The promoter's document is seventeen numbered clauses in six sections.
+    It was first transcribed as unnumbered paragraphs, and clause 13 was left
+    out of it without anything noticing, which is the argument for both the
+    numbering and this test.
+    """
+    page = client.get("/terms").text
+    assert len(_clauses(page)) == 17
+    starts = [int(n) for n in re.findall(r'<ol start="(\d+)">', page)]
+    assert starts == [1, 4, 7, 10, 14, 15], "the count must run unbroken 1 to 17"
+    assert page.count("<h3>") == 6
+
+
+def test_the_marketing_consent_clause_is_on_the_page(client):
+    """Clause 13 is what the contact list's marketing use rests on. The booth
+    exists to build that list, so this clause going missing would quietly
+    invalidate the thing the whole activity is for.
+    """
+    page = " ".join(client.get("/terms").text.split())
+    assert ("Entrants consent to their contact details being utilised for "
+            "marketing purposes by Aquion.") in page
