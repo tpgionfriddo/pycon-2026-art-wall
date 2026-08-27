@@ -21,7 +21,8 @@ from pathlib import Path
 
 import pytest
 
-ARTWALL = Path(__file__).resolve().parent.parent / "artwall"
+ROOT = Path(__file__).resolve().parent.parent
+ARTWALL = ROOT / "artwall"
 TEMPLATES = ARTWALL / "templates"
 
 BANNED = {"—": "an em dash", "…": "an ellipsis character"}
@@ -77,6 +78,23 @@ def test_the_refusals_an_attendee_reads_follow_the_same_rules():
     for message in messages:
         for character, name in BANNED.items():
             assert character not in message, f"{message!r} has {name}"
+
+
+def test_the_runbook_quotes_the_refusals_it_tells_an_operator_to_match():
+    """The runbook's symptom lines are quoted message text, so a reworded
+    message leaves an operator matching against wording nobody will ever see.
+    That drifted the moment those two messages were rewritten, which is why
+    it is checked rather than remembered.
+    """
+    source = (ARTWALL / "server.py").read_text()
+    runbook = (ROOT / "docs" / "RUNBOOK.md").read_text()
+    refusals = re.findall(r'HTTPException\(\s*429,\s*"([^"]+)"', source)
+    assert refusals, "no 429 refusals found to check"
+    for message in refusals:
+        assert message in runbook, (
+            f"RUNBOOK does not quote {message!r}; an operator matching the "
+            f"symptom would be looking for different words"
+        )
 
 
 def test_the_verbatim_exemption_still_describes_a_quoted_document():
