@@ -72,7 +72,7 @@ instead — `failed` would be climbing and `queued` draining.
      box. Fix it in the stack's environment variables and redeploy: this is
      a settings change, not a code change.
    - **Anything else on exit** needs whoever set the box up.
-4. **Attendees seeing "Render queue is full — try again later"** is this same
+4. **Attendees seeing "Render queue is full. Try again later."** is this same
    problem from the other side: new submissions are refused once a hundred
    are waiting. Getting the worker back drains it.
 
@@ -95,6 +95,65 @@ Almost always one of two things, and the worker's log names which:
 
 Submissions that failed this way still have their code stored, but nothing
 re-renders them. Once the log is clean, ask those attendees to submit again.
+
+## Good pieces are being killed for taking too long
+
+**Symptom.** Attendees see **"render exceeded 180 s and was killed"** on their
+status page. The worker log names the same thing. It is not every submission
+— simple pieces still work — and the pieces being killed are animated ones.
+
+**Why.** An animated piece is 150 frames. A `draw(t)` that takes a quarter of
+a second looks instant in the preview, which draws one frame at a time in the
+browser, and then costs nearly forty seconds here. The ceiling is whole-piece,
+so the frame count multiplies whatever the code costs.
+
+The other half is this box, and it is usually not core *count*. A shared
+cloud vCPU is slower per core than a developer laptop, and the penalty is
+steeply non-linear: the slowest Example takes 15.1 s at a full laptop CPU,
+61.7 s at half of one, 112.8 s at a third and 177.1 s at a quarter. So a box
+with plenty of cores can still kill renders if each core is slow and the
+allowance is one.
+
+**Check which it is.** Run `booth-render-timing.py` from the repo on this box.
+It renders the seven Examples through the real sandbox, writes nothing to the
+database, and prints each one against the reference measured on a dev laptop.
+If the Examples are several times slower here, the box is the problem and the
+ceiling is only where you notice.
+
+**The fix, right now:** raise `ARTWALL_RENDER_CPUS`, not the ceiling. Both
+are stack variables, so either is an edit in Portainer and a worker restart
+rather than a commit and a redeploy, and nothing queued is lost. Reach for
+the CPU allowance first because it makes pieces render faster, where the
+ceiling only stops them being thrown away.
+
+It works because an animated piece is two processes: Python drawing frames
+and ffmpeg encoding them, through a pipe. A one-CPU allowance makes them take
+turns. Measured on the slowest Example: 15.1 s at one CPU, 7.1 s at two,
+6.0 s at three. Two takes nearly all of the gain, which is why it is the
+default. Only one render runs at a time, whatever the queue depth, so this
+number is the whole of rendering's claim on the box.
+
+On a four-core box, 2 leaves two cores for the server and the proxy. On a
+two-core box use 1: starving the server to speed up a render trades a slow
+piece for a slow page.
+
+Raise `ARTWALL_RENDER_TIMEOUT_S` as well if pieces are still being killed
+after that. Two things before you raise it a long way: the worker renders one
+job at a time, so the ceiling is also the longest anybody queued behind a
+slow piece waits; and if the box is short of CPU per core, a bigger ceiling
+does not make successful pieces arrive any sooner.
+
+**Do not remove the ceiling.** It is the only thing bounding a submission that
+never finishes. `--memory`, `--pids-limit` and `--cpus` do not stop
+`while True: pass`; the first one to arrive would hold the single worker
+forever, the queue would fill to `ARTWALL_MAX_QUEUE_DEPTH` and `/submit`
+would start refusing everybody. Restarting the worker does not clear it
+either: a `rendering` row is handed straight back to the queue on startup, so
+the same piece hangs again. Recovering would mean deleting that row from
+SQLite by hand, mid-event.
+
+Killed submissions keep their code, but nothing re-renders them. Once the
+ceiling is right, ask those attendees to submit again.
 
 ## The wall is blank
 
@@ -128,7 +187,7 @@ rest.
 ## Attendees are told "Too many submissions"
 
 **Symptom.** Someone who has submitted nothing, or one piece, is refused
-with **"Too many submissions — try again later"**.
+with **"Too many submissions. Try again later."**.
 
 **Why.** Submissions are capped *per network address*, not per person, and
 venue Wi-Fi puts the whole hall behind one. The default is sixty per ten

@@ -80,6 +80,11 @@ services:
       # stack change and a restart, which also clears every bucket.
       ARTWALL_RATE_LIMIT_MAX: ${ARTWALL_RATE_LIMIT_MAX:-60}
       ARTWALL_RATE_LIMIT_WINDOW_S: ${ARTWALL_RATE_LIMIT_WINDOW_S:-600}
+      # The other two guards the server alone applies: how deep the queue may
+      # get before it refuses, and how large one submission may be. Here for
+      # the same reason as the limiter, and the worker reads neither.
+      ARTWALL_MAX_QUEUE_DEPTH: ${ARTWALL_MAX_QUEUE_DEPTH:-100}
+      ARTWALL_MAX_CODE_BYTES: ${ARTWALL_MAX_CODE_BYTES:-32768}
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
 
@@ -93,6 +98,18 @@ services:
       # scratch has to name the same directory here and there (issue 04). The
       # single variable below is both sides of that mount on purpose.
       ARTWALL_SCRATCH_DIR: ${ARTWALL_SCRATCH_DIR:-/tmp/artwall-scratch}
+      # How long one render may take before it is killed, and how often the
+      # queue is checked when it was empty. Both are the worker's alone. The
+      # ceiling is the dial to reach for when good pieces are being killed:
+      # raise it here and restart the worker, no redeploy.
+      ARTWALL_RENDER_TIMEOUT_S: ${ARTWALL_RENDER_TIMEOUT_S:-180}
+      # How many CPUs one render may use. Two, because an animated piece
+      # draws and encodes as two processes through a pipe and a one-CPU cap
+      # serialises them. Only ever one render at a time, so this is the whole
+      # of rendering's claim on the host. Lower it on a two-core box, where
+      # the server and the proxy need what is left.
+      ARTWALL_RENDER_CPUS: ${ARTWALL_RENDER_CPUS:-2.0}
+      ARTWALL_POLL_INTERVAL_S: ${ARTWALL_POLL_INTERVAL_S:-2.0}
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
       # The worker drives the host daemon rather than running one of its

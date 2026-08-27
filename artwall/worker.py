@@ -26,7 +26,10 @@ from .config import MEDIA_NAMES, Settings
 # A read-only root filesystem is deliberately absent: charting writes to a
 # temporary directory, and there is no time before the event to verify that
 # against every Supported Package (ADR-0001).
-DOCKER_FLAGS = ["--network", "none", "--memory", "1g", "--cpus", "1",
+# The CPU allowance is not here: it is `settings.render_cpus`, because it is
+# the one sandbox flag worth tuning per host. Everything below is a property
+# of the sandbox rather than of the box it runs on.
+DOCKER_FLAGS = ["--network", "none", "--memory", "1g",
                 "--pids-limit", "128", "--cap-drop", "ALL",
                 "--security-opt", "no-new-privileges"]
 
@@ -79,7 +82,7 @@ def job_scratch(settings: Settings) -> Iterator[Path]:
 
 def run_container(code: str, out_dir: Path, settings: Settings,
                   job_id: int) -> tuple[str, str]:
-    """One hardened `docker run` per job; the 60 s kill is enforced host-side.
+    """One hardened `docker run` per job; the kill is enforced host-side.
 
     Returns the validated (kind, media filename) the sandbox produced.
     """
@@ -88,6 +91,7 @@ def run_container(code: str, out_dir: Path, settings: Settings,
         src = td / "submission.py"
         src.write_text(code)
         cmd = ["docker", "run", "--rm", "--name", container, *DOCKER_FLAGS,
+               "--cpus", str(settings.render_cpus),
                "-v", f"{src}:/job/submission.py:ro",
                "-v", f"{out_dir}:/out",
                settings.worker_image,

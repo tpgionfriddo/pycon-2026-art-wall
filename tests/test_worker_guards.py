@@ -207,3 +207,53 @@ def test_a_base_the_daemon_would_misread_stops_the_worker(tmp_path):
 def test_an_absent_or_mounted_base_is_accepted(tmp_path):
     assert worker.check_scratch_base(Settings()) is None
     assert worker.check_scratch_base(Settings(scratch_dir=tmp_path)) is None
+
+
+def _docker_argv(monkeypatch, settings) -> list[str]:
+    """The argv `run_container` hands Docker, without running it."""
+    seen = {}
+
+    class Done:
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        seen["cmd"] = cmd
+        seen["kwargs"] = kwargs
+        # Enough of a result for read_result to succeed.
+        out = Path(cmd[cmd.index("-v", cmd.index("-v") + 1) + 1].split(":")[0])
+        (out / "result.json").write_text(
+            json.dumps({"kind": "static", "media": "piece.png"}))
+        (out / "piece.png").write_bytes(b"")
+        return Done()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with tempfile.TemporaryDirectory() as td:
+        worker.run_container(CODE, Path(td), settings, 1)
+    return seen["cmd"], seen["kwargs"]
+
+
+def test_the_render_gets_the_configured_cpu_allowance(monkeypatch, tmp_path):
+    """Animated pieces draw in Python while ffmpeg encodes, two processes
+    through a pipe, so a one-CPU cap serialises work that could overlap.
+    Measured: the slowest Example goes from 15.1 s to 7.1 s at two CPUs and
+    barely moves at three. The worker renders one job at a time, so this
+    allowance is the most rendering can ever take from the host.
+    """
+    settings = Settings(data_dir=tmp_path, render_cpus=2.0)
+    cmd, _ = _docker_argv(monkeypatch, settings)
+    assert "--cpus" in cmd
+    assert cmd[cmd.index("--cpus") + 1] == "2.0"
+    assert cmd.count("--cpus") == 1, "one allowance, not two competing ones"
+
+
+def test_the_other_sandbox_guards_survive_a_tunable_cpu_allowance(monkeypatch, tmp_path):
+    """The CPU allowance moved out of the flag constant to become tunable.
+    Nothing else may have moved with it: these are what make the sandbox one.
+    """
+    cmd, kwargs = _docker_argv(monkeypatch, Settings(data_dir=tmp_path))
+    for flag, value in (("--network", "none"), ("--memory", "1g"),
+                        ("--pids-limit", "128"), ("--cap-drop", "ALL"),
+                        ("--security-opt", "no-new-privileges")):
+        assert flag in cmd, flag
+        assert cmd[cmd.index(flag) + 1] == value, flag
+    assert kwargs.get("timeout") == Settings().render_timeout_s

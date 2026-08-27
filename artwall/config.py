@@ -74,7 +74,23 @@ class Settings:
     rate_limit_window_s: int = 600
     max_queue_depth: int = 100
     worker_image: str = "artwall-worker"
-    render_timeout_s: int = 60
+    # The slowest shipped Example renders in about 15 s on one dedicated
+    # CPU, and halving a container's CPU was measured to cost about 3.3x
+    # rather than 2x, so a starved host puts that piece near 50 s and the old
+    # 60 s ceiling killed work that was fine. This still has to bound a
+    # submission that never finishes: it is the only thing that does. Neither
+    # --memory, --pids-limit nor --cpus stops `while True: pass`, the worker
+    # renders one job at a time, and `requeue_stale_rendering` hands a
+    # `rendering` row straight back on restart, so an unbounded job stops the
+    # wall for the rest of the event and survives a worker restart.
+    render_timeout_s: int = 180
+    # How many CPUs one render may use. Animated pieces draw in Python while
+    # ffmpeg encodes, two processes through a pipe, so a one-CPU cap
+    # serialises work that could overlap: measured on the slowest Example,
+    # 15.1 s at one CPU against 7.1 s at two, and 6.0 s at three. Two takes
+    # nearly all of it. The worker renders one job at a time, so this is the
+    # most rendering can ever take from the host, whatever the queue depth.
+    render_cpus: float = 2.0
     poll_interval_s: float = 2.0
     # The base the render worker builds each job's scratch under. Unset means
     # the system temporary directory; see `artwall.worker.check_scratch_base`
@@ -104,4 +120,19 @@ class Settings:
                 "ARTWALL_RATE_LIMIT_MAX", defaults.rate_limit_max)),
             rate_limit_window_s=int(os.environ.get(
                 "ARTWALL_RATE_LIMIT_WINDOW_S", defaults.rate_limit_window_s)),
+            # The render ceiling belongs here for the same reason: a booth
+            # killing renders it should not be needs an answer faster than a
+            # redeploy. It was the one dial left out, and that is how it was
+            # found. `tests/test_settings_from_env.py` now fails if any
+            # field on this class is unreachable from the environment.
+            render_timeout_s=int(os.environ.get(
+                "ARTWALL_RENDER_TIMEOUT_S", defaults.render_timeout_s)),
+            render_cpus=float(os.environ.get(
+                "ARTWALL_RENDER_CPUS", defaults.render_cpus)),
+            max_queue_depth=int(os.environ.get(
+                "ARTWALL_MAX_QUEUE_DEPTH", defaults.max_queue_depth)),
+            max_code_bytes=int(os.environ.get(
+                "ARTWALL_MAX_CODE_BYTES", defaults.max_code_bytes)),
+            poll_interval_s=float(os.environ.get(
+                "ARTWALL_POLL_INTERVAL_S", defaults.poll_interval_s)),
         )
