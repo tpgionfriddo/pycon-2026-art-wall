@@ -72,7 +72,10 @@ def test_wall_json_has_no_contact_data(client, conn):
     assert "name" not in piece          # the byline is the only credit
 
 
-def test_piece_page_only_for_approved(client, conn):
+def test_piece_page_refuses_a_submission_no_moderator_has_approved(client, conn):
+    """Approved is no longer the only status the page resolves for, so this
+    says what it checks: a submission that never reached the wall has no page.
+    An archived piece does keep its page, which no test covers by decision."""
     submit(client)
     conn.execute("UPDATE submissions SET status='rendered', kind='static',"
                  " media_path='1.png' WHERE id=1")

@@ -50,9 +50,16 @@ const MESSAGES = {
   approved: "Approved. Your piece is on the wall! 🎉",
   rejected: "This piece was not approved for the wall.",
   removed: "This piece has been taken down from the wall.",
+  archived: "Your piece was on the wall. A new day of the event has started, so the wall is showing new pieces.",
   failed: "The render failed.",
 };
-const DONE = new Set(["approved", "rejected", "removed", "failed"]);
+const DONE = new Set(["approved", "rejected", "removed", "archived",
+                      "failed"]);
+// Two different rules, so two lists. A rendered piece has media to show but
+// no page of its own yet; an archived one has both, because an archive is not
+// a judgement and does not take the page away.
+const HAS_MEDIA = ["rendered", "approved", "archived"];
+const HAS_A_PIECE_PAGE = ["approved", "archived"];
 
 function showMedia(s) {
   if (!s.media_url) return;
@@ -70,6 +77,8 @@ async function poll() {
     const s = await resp.json();
     const state = document.getElementById("state");
     state.textContent = MESSAGES[s.status] || s.status;
+    // `archived` is deliberately in neither list. It is not a success to
+    // celebrate a second time and it is not a refusal, so it reads plainly.
     state.className = s.status === "approved" ? "ok"
       : ["failed", "rejected", "removed"].includes(s.status) ? "bad" : "";
     if (s.status === "failed" && s.error) {
@@ -77,8 +86,8 @@ async function poll() {
       err.textContent = s.error;
       err.style.display = "block";
     }
-    if (["rendered", "approved"].includes(s.status)) showMedia(s);
-    if (s.status === "approved") {
+    if (HAS_MEDIA.includes(s.status)) showMedia(s);
+    if (HAS_A_PIECE_PAGE.includes(s.status)) {
       document.getElementById("links").innerHTML +=
         ` · <a href="/piece/${ID}">View your piece</a>`;
     }

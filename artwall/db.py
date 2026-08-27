@@ -2,15 +2,17 @@
 (ADR-0002): no broker, jobs survive restarts because the queue is the DB.
 
 Status lifecycle: queued -> rendering -> rendered -> approved | rejected,
-with failed reachable from rendering, and removed (a takedown) reachable from
-approved. A rejected submission was never displayed; a removed one was.
+with failed reachable from rendering, and removed (a takedown) and archived
+both reachable from approved. A rejected submission was never displayed; a
+removed one was. An archived one was displayed too, and is off the wall for
+no reason but the event moving on to a new day.
 """
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 STATUSES = ("queued", "rendering", "rendered", "approved", "rejected",
-            "removed", "failed")
+            "removed", "archived", "failed")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS submissions (
@@ -178,6 +180,22 @@ def take_down(conn, submission_id: int) -> None:
         "UPDATE submissions SET status = 'removed', moderated_at = ?"
         " WHERE id = ? AND status = 'approved'",
         (utcnow(), submission_id),
+    )
+    conn.commit()
+
+
+def archive(conn, submission_id: int) -> None:
+    """Retire a piece from the wall so the next day starts on a clean one.
+
+    Only from 'approved', like a takedown, and everything else about the two
+    differs. `moderated_at` is deliberately left alone: the moderator's
+    decision about this piece stands, and stamping it with the moment the
+    booth opened on day two would record a review that never happened.
+    """
+    conn.execute(
+        "UPDATE submissions SET status = 'archived'"
+        " WHERE id = ? AND status = 'approved'",
+        (submission_id,),
     )
     conn.commit()
 

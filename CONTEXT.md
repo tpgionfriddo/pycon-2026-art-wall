@@ -66,6 +66,15 @@ The removal of an already-approved piece from the wall. Distinct from a
 rejection, which was never displayed to anyone.
 _Avoid_: unapprove, delete, hide
 
+**Archive**:
+Retiring a piece from the wall because the event has moved on to a new day,
+so the next day starts on an empty wall. Neither a takedown nor a judgement:
+the moderator's approval stands and is left untouched in the record, the
+piece's own page keeps resolving for an attendee who saved the link, and only
+the wall changes. Reachable only from an approved piece, one piece at a time,
+and like a takedown it cannot be undone from the moderation queue.
+_Avoid_: reset, clear, delete, unpublish, rotate
+
 **Supported Packages**:
 The single fixed list of Python packages available to submissions — exactly
 those that work both in the preview (Pyodide/micropip) and in the render

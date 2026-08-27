@@ -26,6 +26,8 @@
   button { background: #ffffff; color: #6B57FF; border: 1px solid #6B57FF;
     border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
   button:hover { background: #6B57FF; color: #ffffff; }
+  #archived-note { color: #6f737a; font-size: 13px; max-width: 46ch;
+    text-align: center; margin: 0; }
   a { color: #6B57FF; font-size: 13px; text-decoration: none; }
   a:hover { text-decoration: underline; }
 </style>
@@ -40,6 +42,11 @@
   <pre id="source">{{ code }}</pre>
 </div>
 {% if piece.byline %}<h1><span>by</span> {{ piece.byline }}</h1>{% endif %}
+{% if archived %}
+{# Not a takedown, and it must not read like one. The piece is still here. #}
+<p id="archived-note">This piece was on the wall on an earlier day of the event.
+  The wall is showing new pieces now.</p>
+{% endif %}
 <button id="flip">Show the source</button>
 <a href="/wall">← back to the wall</a>
 
