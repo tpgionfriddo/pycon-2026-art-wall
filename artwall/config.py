@@ -84,6 +84,13 @@ class Settings:
     # `rendering` row straight back on restart, so an unbounded job stops the
     # wall for the rest of the event and survives a worker restart.
     render_timeout_s: int = 180
+    # How many CPUs one render may use. Animated pieces draw in Python while
+    # ffmpeg encodes, two processes through a pipe, so a one-CPU cap
+    # serialises work that could overlap: measured on the slowest Example,
+    # 15.1 s at one CPU against 7.1 s at two, and 6.0 s at three. Two takes
+    # nearly all of it. The worker renders one job at a time, so this is the
+    # most rendering can ever take from the host, whatever the queue depth.
+    render_cpus: float = 2.0
     poll_interval_s: float = 2.0
     # The base the render worker builds each job's scratch under. Unset means
     # the system temporary directory; see `artwall.worker.check_scratch_base`
@@ -120,6 +127,8 @@ class Settings:
             # field on this class is unreachable from the environment.
             render_timeout_s=int(os.environ.get(
                 "ARTWALL_RENDER_TIMEOUT_S", defaults.render_timeout_s)),
+            render_cpus=float(os.environ.get(
+                "ARTWALL_RENDER_CPUS", defaults.render_cpus)),
             max_queue_depth=int(os.environ.get(
                 "ARTWALL_MAX_QUEUE_DEPTH", defaults.max_queue_depth)),
             max_code_bytes=int(os.environ.get(

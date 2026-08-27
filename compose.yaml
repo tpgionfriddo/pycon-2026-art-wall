@@ -103,6 +103,12 @@ services:
       # ceiling is the dial to reach for when good pieces are being killed:
       # raise it here and restart the worker, no redeploy.
       ARTWALL_RENDER_TIMEOUT_S: ${ARTWALL_RENDER_TIMEOUT_S:-180}
+      # How many CPUs one render may use. Two, because an animated piece
+      # draws and encodes as two processes through a pipe and a one-CPU cap
+      # serialises them. Only ever one render at a time, so this is the whole
+      # of rendering's claim on the host. Lower it on a two-core box, where
+      # the server and the proxy need what is left.
+      ARTWALL_RENDER_CPUS: ${ARTWALL_RENDER_CPUS:-2.0}
       ARTWALL_POLL_INTERVAL_S: ${ARTWALL_POLL_INTERVAL_S:-2.0}
     volumes:
       - ${ARTWALL_DATA_DIR:-./data}:/data
