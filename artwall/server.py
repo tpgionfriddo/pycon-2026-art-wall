@@ -113,6 +113,26 @@ def _piece_json(row) -> dict:
     }
 
 
+def _gallery_piece_json(row) -> dict:
+    """Export payload for the static gallery built after the event.
+
+    Wider than `_piece_json` by exactly one field, the code, which the piece
+    page already shows to anyone with the link. Narrower than the CSV export
+    by everything it collects: no contact name, no email, no phone, no
+    company. The generator writes a public website out of whatever this
+    returns, so the contact info is left out here rather than dropped
+    downstream — this way there is nothing downstream to get wrong.
+    """
+    return {
+        "id": row["id"],
+        "byline": row["byline"] or None,
+        "kind": row["kind"],
+        "media_path": row["media_path"],
+        "code": row["code"],
+        "created_at": row["created_at"],
+    }
+
+
 def _waited_for(since: str | None) -> str | None:
     """How long ago `since` was, phrased for a glance between conversations.
 
@@ -345,6 +365,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         db.archive(conn, submission_id)
         return RedirectResponse("/admin", status_code=303)
+
+    @app.get("/admin/export/gallery.json",
+             dependencies=[Depends(require_admin)])
+    def export_gallery(conn=Depends(get_conn)):
+        """Everything the post-event static gallery is built from.
+
+        Behind the moderator password like the CSV export, though nothing in
+        it is secret: every field here is already public on the piece page.
+        The password is because bulk-exporting the event is the organisers'
+        action, not because the pieces are.
+        """
+        return {"pieces": [_gallery_piece_json(r)
+                           for r in db.list_for_gallery(conn)]}
 
     @app.get("/admin/export.csv", dependencies=[Depends(require_admin)])
     def export_csv(conn=Depends(get_conn)):

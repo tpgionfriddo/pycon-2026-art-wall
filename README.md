@@ -171,6 +171,51 @@ certificates, because they live in a named volume. Neither is removed by a
 stack update; only deleting the stack *and* its volumes would take the
 certificates, and nothing but `rm` would take the database.
 
+## After the event: the static gallery
+
+`python -m artwall.gallery` turns a deployed wall into a directory of plain
+files — one `index.html` and one media file per piece — for GitHub Pages to
+serve. Every piece a moderator approved, including the ones archived when the
+event moved on to a new day, each with the Python that drew it. See
+ADR-0009.
+
+```bash
+uv sync --group gallery      # the generator needs Pygments; the server does not
+
+# ARTWALL_ADMIN_PASSWORD is read from the environment, or prompted for
+python -m artwall.gallery --base-url https://artwall.example.com \
+    --winners 12,45,88 --out ../artwall-gallery
+```
+
+`--winners` takes the daily winners in day order: the first id is day one.
+Nothing in the database records the judges' decision, so this flag is the
+only place it exists. A winner keeps its place in the grid and wears a small
+pixel trophy carrying its day number.
+
+**Publish it from its own repository**, not this one. The media runs to
+hundreds of megabytes, Portainer clones this repository on every redeploy,
+and the point of that (ADR-0007) is shipping a fix from a phone tether at the
+booth. Git objects are permanent and a branch does not help — a clone fetches
+them all.
+
+```bash
+gh repo create <event>-art-gallery --public
+cd ../artwall-gallery && git init && git add -A
+git commit -m "The art wall, <event>"
+git push --set-upstream <url> main
+# then: Settings -> Pages -> Deploy from a branch -> main / (root)
+```
+
+**Taking a piece out of the published gallery** is deleting its media file
+from that repository and nothing else — the tile hides itself when its media
+does not load, and the grid closes up. A later rebuild fetches it again, so
+a removal that has to survive one goes in `--exclude 14,22`.
+
+Everything published is byline-only: no contact name, no email, no phone, no
+company. The export endpoint the generator reads leaves those out entirely,
+rather than leaving it to the generator to drop them. Clause 11 of the
+supplied terms is what permits the publication, and clause 12 the credit.
+
 ## Operating it
 
 [`docs/RUNBOOK.md`](docs/RUNBOOK.md) is one page of symptom → action for
@@ -200,7 +245,8 @@ it was dropped from the contest entirely (ADR-0001).
 
 - `artwall/` — `server` (FastAPI), `worker` (claims jobs and drives the host
   Docker daemon),
-  `db` (SQLite = the job queue), `config`, `templates/`,
+  `db` (SQLite = the job queue), `config`, `gallery` (the post-event static
+  site generator), `templates/`,
   `static/` (committed page assets — the wall logo)
 - `worker/` — sandbox `Dockerfile` + `render_job.py` (in-container harness)
 - `proxy/` — the reverse proxy image: `Dockerfile` + the `Caddyfile` that
