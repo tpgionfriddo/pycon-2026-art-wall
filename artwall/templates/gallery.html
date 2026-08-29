@@ -1,0 +1,257 @@
+{#- One piece's square place on the page. A winner carries a small pixel
+    trophy in the corner rather than a section of its own: the wall showed
+    every piece side by side and so does this. -#}
+{% macro tile(piece) -%}
+<button class="tile" type="button"
+        data-id="{{ piece.id }}" data-kind="{{ piece.kind }}"
+        data-src="{{ piece.media_url }}"
+        data-byline="{{ piece.byline or '' }}">
+  {%- if piece.kind == "animated" %}
+  <video src="{{ piece.media_url }}" muted loop playsinline preload="metadata"></video>
+  {%- else %}
+  <img src="{{ piece.media_url }}" loading="lazy"
+       alt="{% if piece.byline %}piece by {{ piece.byline }}{% else %}an unattributed piece{% endif %}">
+  {%- endif %}
+  {%- if piece.trophy %}
+  <span class="trophy" title="Day {{ piece.day }} winner">{{ piece.trophy }}</span>
+  {%- endif %}
+  <span class="byline{% if not piece.byline %} none{% endif %}">{{ piece.byline or "unattributed" }}</span>
+</button>
+{%- endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<meta name="description" content="{{ subtitle }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  /* Dark, like the wall and unlike the four light pages beside it. ADR-0006
+     gives the wall its own theme because art on black is what a booth TV is
+     for; this page is that wall after the event, read on a phone instead of
+     across a room, and the pieces were composed against the black. Purple
+     stays the one interactive colour. */
+  :root { color-scheme: dark; --ink: #ffffff; --line: #2c2c33;
+    --ground: #101014; --dim: rgba(255, 255, 255, 0.62); --accent: #6B57FF; }
+  * { box-sizing: border-box; }
+  /* Monospace throughout and no rounded corner anywhere: everything on this
+     page was typed, and the page is built out of squares to match. */
+  body { margin: 0; background: #000000; color: var(--ink);
+    font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+
+  /* Packed tight on purpose. The pieces are the page; there is no chrome
+     between them to give the gaps a job. */
+  #all { display: grid; gap: 4px; padding: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+  .tile { position: relative; aspect-ratio: 1; margin: 0; padding: 0;
+    display: block; cursor: pointer; overflow: hidden;
+    border: 1px solid var(--line); background: var(--ground); }
+  .tile img, .tile video { width: 100%; height: 100%; display: block;
+    /* contain, not cover: a piece is composed to its own frame, and cropping
+       it to fill a square would edit somebody's artwork. */
+    object-fit: contain; }
+  .tile:hover, .tile:focus-visible { outline: 2px solid var(--accent);
+    outline-offset: -2px; }
+  /* `display: block` above outranks the browser's own rule for [hidden], so
+     without this a piece removed from the repository leaves its slot behind
+     as a hole in the grid instead of closing it up. */
+  .tile[hidden] { display: none; }
+
+  /* The byline sits over the piece and only while pointed at, so a grid of a
+     hundred stays a grid of a hundred pieces rather than of captions. The
+     focused view names every piece unconditionally. */
+  .byline { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px;
+    font-size: 11px; text-align: left; color: #ffffff;
+    background: rgba(0, 0, 0, 0.82); opacity: 0;
+    transition: opacity 90ms linear; pointer-events: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile:hover .byline, .tile:focus-visible .byline { opacity: 1; }
+  .byline.none { font-style: italic; color: var(--dim); }
+
+  /* Drawn as whole pixels and kept that way at every size. */
+  .trophy { position: absolute; top: 4px; right: 4px; width: 22px;
+    height: 22px; display: block; pointer-events: none; }
+  .trophy svg { width: 100%; height: 100%; display: block;
+    shape-rendering: crispEdges;
+    filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.8)); }
+
+  /* ---- the focused piece ---- */
+  #overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88);
+    display: none; z-index: 10; padding: 16px; overflow-y: auto; }
+  #overlay.open { display: block; }
+  #dialog { background: #0a0a0d; border: 2px solid var(--line);
+    box-shadow: 6px 6px 0 rgba(107, 87, 255, 0.35);
+    max-width: 1100px; margin: 0 auto; padding: 14px; display: grid; gap: 14px;
+    grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 900px) {
+    /* Wide enough for both at once: the piece and the code that drew it,
+       side by side, which is the whole point of the gallery. */
+    #dialog { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start; }
+    #dialog-head { grid-column: 1 / -1; }
+  }
+  #dialog-head { display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; }
+  #dialog-byline { font-size: 15px; margin: 0; font-weight: 800; }
+  #dialog-byline span { color: var(--dim); font-weight: 400; }
+  #dialog-trophy { width: 22px; height: 22px; }
+  #dialog-trophy svg { width: 100%; height: 100%; display: block;
+    shape-rendering: crispEdges; }
+  /* Filled rather than outlined, as on the wall: purple text on near-black
+     is too faint to be an obvious control. */
+  .nav, #close { background: none; color: var(--accent); font: inherit;
+    font-size: 12px; font-weight: 600; border: 2px solid var(--accent);
+    padding: 4px 10px; cursor: pointer; }
+  .nav:hover:not([disabled]), #close:hover { background: var(--accent);
+    color: #ffffff; }
+  .nav[disabled] { color: var(--dim); border-color: var(--line);
+    cursor: default; opacity: 0.5; }
+  #close { margin-left: auto; }
+  #dialog-frame { border: 1px solid var(--line); background: var(--ground); }
+  #dialog-frame img, #dialog-frame video { width: 100%; display: block; }
+  #dialog-source { margin: 0; max-height: 70vh; overflow: auto;
+    background: var(--ground); border: 1px solid var(--line); padding: 14px;
+    font-size: 12.5px; line-height: 1.55; }
+  #dialog-source pre { margin: 0; }
+{{ pygments_css }}
+</style>
+</head>
+<body>
+<div id="all">
+  {% for piece in pieces %}{{ tile(piece) }}{% endfor %}
+</div>
+
+{#- The highlighted source, parked outside the grid so a tile stays a tile,
+    and above the script rather than below it: a link straight to one piece
+    runs that script on load, and it has to find these already parsed. -#}
+<div hidden>
+  {%- for piece in pieces %}
+  <div id="code-{{ piece.id }}">{{ piece.code_html }}</div>
+  {%- endfor %}
+</div>
+
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-byline">
+  <div id="dialog">
+    <div id="dialog-head">
+      <span id="dialog-trophy"></span>
+      <h2 id="dialog-byline"></h2>
+      <button class="nav" id="prev" type="button">&#8592; prev</button>
+      <button class="nav" id="next" type="button">next &#8594;</button>
+      <button id="close" type="button">close</button>
+    </div>
+    <div id="dialog-frame"></div>
+    <div id="dialog-source"></div>
+  </div>
+</div>
+
+<script>
+// Tiles whose media is missing take themselves off the page. Pieces are
+// pulled from this gallery by deleting the media file from the repository and
+// nothing else, so a 404 here is an intended removal rather than a fault, and
+// it has to look like one.
+const tiles = [...document.querySelectorAll(".tile")];
+for (const tile of tiles) {
+  tile.querySelector("img, video").addEventListener("error", () => {
+    tile.hidden = true;
+    tile.dataset.gone = "1";
+  });
+}
+
+// Only what is on screen decodes. A phone scrolling a page of a hundred
+// looping VP9 files will not play them all at once, and asking it to is how
+// the page stops scrolling.
+const inView = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) entry.target.play().catch(() => {});
+    else entry.target.pause();
+  }
+}, { rootMargin: "200px" });
+for (const video of document.querySelectorAll(".tile video")) inView.observe(video);
+
+const overlay = document.getElementById("overlay");
+const frame = document.getElementById("dialog-frame");
+const sourceBox = document.getElementById("dialog-source");
+const bylineBox = document.getElementById("dialog-byline");
+const trophyBox = document.getElementById("dialog-trophy");
+const prev = document.getElementById("prev");
+const next = document.getElementById("next");
+const byId = new Map(tiles.map((t) => [t.dataset.id, t]));
+let current = null;
+
+function show(id) {
+  const tile = byId.get(String(id));
+  if (!tile || tile.dataset.gone === "1") return close();
+  current = tile;
+  const kind = tile.dataset.kind;
+  frame.innerHTML = "";
+  const media = document.createElement(kind === "animated" ? "video" : "img");
+  media.src = tile.dataset.src;
+  if (kind === "animated") {
+    media.autoplay = media.muted = media.loop = media.playsInline = true;
+  } else {
+    media.alt = tile.dataset.byline
+      ? "piece by " + tile.dataset.byline : "an unattributed piece";
+  }
+  frame.append(media);
+  sourceBox.innerHTML = document.getElementById("code-" + id).innerHTML;
+  bylineBox.innerHTML = tile.dataset.byline
+    ? '<span>by</span> ' + tile.dataset.byline
+    : '<span>unattributed</span>';
+  const trophy = tile.querySelector(".trophy");
+  trophyBox.innerHTML = trophy ? trophy.innerHTML : "";
+  const at = tiles.indexOf(tile);
+  prev.disabled = at <= 0;
+  next.disabled = at >= tiles.length - 1;
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+  document.getElementById("close").focus();
+}
+
+function close() {
+  overlay.classList.remove("open");
+  frame.innerHTML = "";          // stops a playing video rather than hiding it
+  document.body.style.overflow = "";
+  current = null;
+  if (location.hash) history.pushState("", "", location.pathname);
+}
+
+function step(delta) {
+  const target = tiles[tiles.indexOf(current) + delta];
+  if (target) location.hash = "piece-" + target.dataset.id;
+}
+
+for (const tile of tiles) {
+  tile.addEventListener("click", () => {
+    const hash = "#piece-" + tile.dataset.id;
+    // Assigning the hash it already holds fires no hashchange, which is the
+    // case of reopening the piece a shared link arrived on.
+    if (location.hash === hash) show(tile.dataset.id);
+    else location.hash = hash;
+  });
+}
+document.getElementById("close").addEventListener("click", close);
+overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+prev.addEventListener("click", () => step(-1));
+next.addEventListener("click", () => step(1));
+document.addEventListener("keydown", (e) => {
+  if (!overlay.classList.contains("open")) return;
+  if (e.key === "Escape") close();
+  if (e.key === "ArrowLeft") step(-1);
+  if (e.key === "ArrowRight") step(1);
+});
+
+// The hash is the state, so a link to one piece opens on that piece and the
+// back button steps out of the overlay rather than off the page.
+function fromHash() {
+  const match = /^#piece-(\d+)$/.exec(location.hash);
+  if (match) show(match[1]); else close();
+}
+window.addEventListener("hashchange", fromHash);
+fromHash();
+</script>
+</body>
+</html>

@@ -24,3 +24,10 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]
+# The post-event gallery generator alone (`python -m artwall.gallery`), which
+# runs on somebody's laptop and never inside the application image. Kept out
+# of the runtime dependencies for that reason: the server has no use for a
+# syntax highlighter.
+gallery = [
+    "pygments>=2.19.1",
+]

@@ -206,6 +206,20 @@ def list_by_status(conn, status: str) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def list_for_gallery(conn) -> list[sqlite3.Row]:
+    """Every piece a moderator let onto the wall, whichever day it was.
+
+    Both states a moderator's yes can leave a piece in: still on the wall, or
+    archived because the event moved on to a new day. A takedown is the one
+    approval that is withdrawn rather than retired, so `removed` is absent
+    here as deliberately as `rejected` is — see `take_down` and `archive`.
+    """
+    return conn.execute(
+        "SELECT * FROM submissions WHERE status IN ('approved', 'archived')"
+        " ORDER BY id"
+    ).fetchall()
+
+
 def list_all(conn) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM submissions ORDER BY id").fetchall()
 
