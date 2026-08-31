@@ -224,8 +224,9 @@ a `<video>` paints nothing until it has decoded a frame, and a phone will not
 decode seventy of them. With the stills, the grid is images and a video is
 attached to a tile only while it is on screen. What is on screen is the
 bound: about ten pieces on a phone, fifty on a desktop, all of them moving.
-A monitor big enough to show the whole gallery at once runs into the
-browser's own limit on media players, somewhere around seventy five, and the
+The ceiling is the browser's own limit on media
+players, seventy five, so a gallery smaller than that plays every piece on
+screen however large the screen. A larger event reaches it, and then the
 tiles nearest the middle of the screen are the ones that play.
 
 Everything published is byline-only: no contact name, no email, no phone, no

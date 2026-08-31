@@ -76,7 +76,11 @@
     object-fit: contain; }
   /* The playing video covers its own poster exactly, so the swap is invisible
      rather than a jump. */
-  .tile video.live { position: absolute; inset: 0; }
+  .tile video.live { position: absolute; inset: 0; z-index: 0; }
+  /* Above the piece, still or playing. Document order already puts them
+     there; this says so, so that moving the markup cannot quietly hide the
+     credit on every animated piece. */
+  .byline, .trophy { z-index: 1; }
   .tile:hover, .tile:focus-visible { outline: 2px solid var(--accent);
     outline-offset: -2px; }
   /* `display: block` above outranks the browser's own rule for [hidden], so
@@ -201,11 +205,17 @@ for (const tile of tiles) {
 //
 // The ceiling is the browser's, not a policy: Chrome stops handing out media
 // players somewhere around seventy five and the ones past that quietly never
-// start. Sixty four sits under it with room to spare, and above a screenful
-// that large some tiles stay still whatever this number says. When it bites,
-// the tiles nearest the middle of the screen win, because that is where
-// somebody is looking.
-const LIVE_CEILING = 64;
+// start. This gallery is smaller than that, so the ceiling never binds and
+// every piece on screen moves, however large the screen. It is still here
+// because a bigger event would reach it, and because the opened piece takes
+// a player of its own on top of the grid's.
+//
+// A browser with a lower limit, and a phone has one, simply refuses the
+// players past it: those tiles keep showing their still, which is what a
+// tile shows anyway until its video starts. When the ceiling does bite, the
+// tiles nearest the middle of the screen win, because that is where somebody
+// is looking.
+const LIVE_CEILING = 75;
 const live = new Set();
 const visible = new Set();
 
@@ -246,7 +256,10 @@ function startPlaying(poster) {
   // A video that will not play leaves the still showing, which is the right
   // thing to look at anyway.
   video.addEventListener("error", () => stopPlaying(poster));
-  poster.parentElement.append(video);
+  // Straight after the still it covers, and so before the trophy and the
+  // byline. Appended to the tile instead it would paint over both, because
+  // positioned siblings without a z-index stack in document order.
+  poster.after(video);
   video.play().catch(() => stopPlaying(poster));
 }
 

@@ -40,9 +40,17 @@ clone fetches them all.
   careful about; holding a media player for all seventy seven is. Tiles are
   200px rather than 160px for the same reason: the smaller tile fitted a
   whole 1080p screenful of pieces, more than a browser hands out players for,
-  so a third of the grid sat still. Above a screenful that large some tiles
-  stay still whatever the ceiling says, and the ones nearest the middle of
-  the screen win. Without ffmpeg the build carries on and falls back to bare
+  so a third of the grid sat still. The ceiling is 75, which is the browser's own
+  limit rather than a policy, so for a gallery smaller than that it never
+  binds and every piece on screen moves however large the screen. A larger
+  event would reach it, and then the tiles nearest the middle of the screen
+  win. A browser with a lower limit refuses the players past it and those
+  tiles keep showing their still, which is what a tile shows anyway until its
+  video starts.
+- The playing video is inserted straight after the still it covers, so the
+  trophy and the byline stay above it. Appended to the tile instead it
+  painted over both, because positioned siblings without a z-index stack in
+  document order, and every winner is animated. Without ffmpeg the build carries on and falls back to bare
   video elements, loudly.
 - The highlighted source is inlined in `<template>` elements rather than
   hidden divs. Seventy pieces of syntax-highlighted Python is a span per
