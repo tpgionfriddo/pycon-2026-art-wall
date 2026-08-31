@@ -7,6 +7,7 @@ event the wall no longer shows — leaving them out silently publishes the last
 day and calls it the gallery.
 """
 import json
+import re
 import shutil
 import subprocess
 
@@ -302,6 +303,64 @@ def test_without_a_still_the_tile_falls_back_to_a_video(site):
         [], "t", "s")
 
     assert '<video src="media/3.webm"' in page
+
+
+# ---- the order the grid reads in -----------------------------------------
+
+def _ids_of(pieces):
+    return [p["id"] for p in pieces]
+
+
+def _some(*ids):
+    return [{"id": i, "kind": "static"} for i in ids]
+
+
+def test_without_flags_the_grid_stays_in_id_order():
+    """Which is the order the event happened in."""
+    pieces = _some(1, 2, 5, 9)
+
+    assert _ids_of(gallery.order_pieces(pieces, [], [])) == [1, 2, 5, 9]
+
+
+def test_chosen_pieces_come_first_in_the_order_given():
+    pieces = _some(1, 2, 5, 9)
+
+    ordered = gallery.order_pieces(pieces, [9, 1], [])
+
+    assert _ids_of(ordered) == [9, 1, 2, 5]
+
+
+def test_the_winners_follow_the_chosen_pieces():
+    """A trophy marks a winner but does not move it; this does."""
+    pieces = _some(1, 2, 5, 9)
+
+    ordered = gallery.order_pieces(pieces, [9], [5, 2])
+
+    assert _ids_of(ordered) == [9, 5, 2, 1]
+
+
+def test_a_winner_named_first_is_placed_once():
+    pieces = _some(1, 2, 5, 9)
+
+    ordered = gallery.order_pieces(pieces, [5], [5, 2])
+
+    assert _ids_of(ordered) == [5, 2, 1, 9]
+
+
+def test_putting_an_excluded_piece_first_is_an_error():
+    """Rather than a silently shorter front row."""
+    with pytest.raises(gallery.GalleryError, match="7"):
+        gallery.order_pieces(_some(1, 2), [7], [])
+
+
+def test_the_page_renders_in_the_ordered_sequence(site):
+    pieces = [{"id": i, "kind": "static", "media_url": f"media/{i}.png",
+               "poster_url": None, "byline": f"piece {i}", "code": "x = 1\n"}
+              for i in (1, 2, 5, 9)]
+
+    page = gallery.render_page(pieces, [5], "t", "s", first_ids=[9])
+
+    assert re.findall(r'data-id="(\d+)"', page) == ["9", "5", "1", "2"]
 
 
 def test_a_piece_whose_media_will_not_download_is_dropped(tmp_path,

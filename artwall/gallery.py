@@ -298,8 +298,37 @@ def winner_days(pieces: list[dict], winner_ids: list[int]) -> dict[int, int]:
     return {piece_id: day for day, piece_id in enumerate(winner_ids, start=1)}
 
 
+def order_pieces(pieces: list[dict], first_ids: list[int],
+                 winner_ids: list[int]) -> list[dict]:
+    """The order the grid reads in: chosen pieces, then winners, then the rest.
+
+    `--first` is for the pieces that introduce the gallery rather than compete
+    in it, in the order given. The winners follow, in day order, because they
+    are the next thing worth seeing and the trophy alone does not put them
+    where somebody looks first. Everything after that stays in id order, which
+    is the order the event happened in.
+
+    An id named twice is placed once, at its first mention, so naming a winner
+    in `--first` moves it forward rather than duplicating it.
+    """
+    known = {piece["id"] for piece in pieces}
+    missing = [i for i in first_ids if i not in known]
+    if missing:
+        raise GalleryError(
+            f"--first names {', '.join(str(i) for i in missing)}, which no "
+            "piece in this gallery has. A piece excluded by --exclude is not "
+            "here to be put first either.")
+    by_id = {piece["id"]: piece for piece in pieces}
+    placed, front = set(), []
+    for piece_id in [*first_ids, *winner_ids]:
+        if piece_id in by_id and piece_id not in placed:
+            placed.add(piece_id)
+            front.append(by_id[piece_id])
+    return front + [p for p in pieces if p["id"] not in placed]
+
+
 def render_page(pieces: list[dict], winner_ids: list[int], title: str,
-                subtitle: str) -> str:
+                subtitle: str, first_ids: list[int] | None = None) -> str:
     """The whole gallery as one HTML document.
 
     A winner is not lifted out into a band of its own: it keeps its place in
@@ -308,6 +337,7 @@ def render_page(pieces: list[dict], winner_ids: list[int], title: str,
     """
     highlight, pygments_css = _highlighter()
     days = winner_days(pieces, winner_ids)
+    pieces = order_pieces(pieces, first_ids or [], winner_ids)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)),
                       autoescape=select_autoescape(["html"]))
     prepared = [
@@ -323,7 +353,8 @@ def render_page(pieces: list[dict], winner_ids: list[int], title: str,
 
 
 def build(base_url: str, password: str, out_dir: Path, winner_ids: list[int],
-          exclude: set[int], title: str, subtitle: str, log=print) -> int:
+          exclude: set[int], title: str, subtitle: str,
+          first_ids: list[int] | None = None, log=print) -> int:
     """Write the whole gallery into `out_dir`. Returns the piece count."""
     log(f"Reading {base_url} ...")
     pieces = fetch_pieces(base_url, password)
@@ -337,6 +368,7 @@ def build(base_url: str, password: str, out_dir: Path, winner_ids: list[int],
     # is the likeliest thing to be wrong on the command line, and finding out
     # after downloading a few hundred megabytes is a poor way to hear it.
     winner_days(pieces, winner_ids)
+    order_pieces(pieces, first_ids or [], winner_ids)   # same early check
 
     out_dir.mkdir(parents=True, exist_ok=True)
     pieces = download_media(base_url, pieces, out_dir / "media", log=log)
@@ -346,7 +378,8 @@ def build(base_url: str, password: str, out_dir: Path, winner_ids: list[int],
     pieces = build_posters(pieces, out_dir / "media", log=log)
 
     (out_dir / "index.html").write_text(
-        render_page(pieces, winner_ids, title, subtitle), encoding="utf-8")
+        render_page(pieces, winner_ids, title, subtitle, first_ids),
+        encoding="utf-8")
     # Pages runs Jekyll over a site without this, which costs a build on every
     # push and would swallow any file whose name begins with an underscore.
     (out_dir / ".nojekyll").write_text("")
@@ -374,6 +407,10 @@ def main(argv: list[str] | None = None) -> int:
                              " e.g. --winners 12,45,88")
     parser.add_argument("--exclude", type=_ids, default=[], metavar="IDS",
                         help="piece ids to leave out of every rebuild")
+    parser.add_argument("--first", type=_ids, default=[], metavar="IDS",
+                        help="piece ids to put at the front of the grid, in"
+                             " the order given. The winners follow them, then"
+                             " everything else in id order.")
     parser.add_argument("--title", default=DEFAULT_TITLE)
     parser.add_argument("--subtitle", default=DEFAULT_SUBTITLE)
     parser.add_argument("--password", default=None,
@@ -387,7 +424,7 @@ def main(argv: list[str] | None = None) -> int:
                 or getpass.getpass("Moderator password: "))
     try:
         build(args.base_url, password, args.out, args.winners,
-              set(args.exclude), args.title, args.subtitle)
+              set(args.exclude), args.title, args.subtitle, args.first)
     except GalleryError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
