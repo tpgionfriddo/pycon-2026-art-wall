@@ -23,10 +23,22 @@ clone fetches them all.
   (ADR: `db.archive`), so an export of `approved` alone would silently
   publish the last day of the event and call it the gallery. `removed` — a
   takedown — stays out, as it stays off the wall.
-- Pieces are pulled from the published gallery by deleting the media file
-  from that repository. A tile whose media 404s hides itself, so a plain `rm`
-  is the whole operation. A rebuild fetches it again; `--exclude` is what
-  makes a removal survive one.
+- Pieces are pulled from the published gallery by deleting the media from
+  that repository. A tile whose image 404s hides itself, so `rm media/14.*`
+  is the whole operation — the glob because an animated piece is two files
+  sharing a stem. A rebuild fetches it again; `--exclude` is what makes a
+  removal survive one.
+- The grid is **stills**, not videos. A `<video>` paints nothing until it has
+  decoded a frame, so seventy of them open as seventy empty boxes, and a
+  phone declines to load that many media players at all. ffmpeg extracts one
+  frame per animated piece at build time (mid-loop, since a loop that fades
+  up from black opens on nothing), and the page attaches a video to a tile
+  only while it is on screen, eight at a time. Without ffmpeg the build
+  carries on and falls back to bare video elements, loudly.
+- The highlighted source is inlined in `<template>` elements rather than
+  hidden divs. Seventy pieces of syntax-highlighted Python is a span per
+  token: 158,658 live DOM nodes as divs against 499 as templates, all of the
+  difference being nodes laid out for a panel nobody had opened.
 - The page is dark, like the wall and unlike the four light pages ADR-0006
   describes. It is the wall after the event, and the pieces were composed
   against black.

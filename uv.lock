@@ -120,6 +120,9 @@ dev = [
     { name = "httpx" },
     { name = "pytest" },
 ]
+gallery = [
+    { name = "pygments" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -144,6 +147,7 @@ dev = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pytest", specifier = ">=9.1.1" },
 ]
+gallery = [{ name = "pygments", specifier = ">=2.19.1" }]
 
 [[package]]
 name = "asttokens"

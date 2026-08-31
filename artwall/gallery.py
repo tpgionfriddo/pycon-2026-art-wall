@@ -21,6 +21,8 @@ import base64
 import getpass
 import json
 import os
+import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -104,6 +106,83 @@ def download_media(base_url: str, pieces: list[dict], media_dir: Path,
                 continue
         kept.append(piece | {"media_url": f"media/{target.name}"})
     return kept
+
+
+# ---- a still for every animated piece ------------------------------------
+
+# Halfway through the loop rather than at its start. A loop that fades up from
+# black opens on an empty frame, and a grid of those is a grid of empty boxes.
+POSTER_AT = 0.5
+# Beside the media and named after it, so `rm media/12.*` takes the piece and
+# its still together. Removal from the published gallery is a delete and
+# nothing else, and it has to stay that way with two files to delete.
+# JPEG rather than WebP: the webp encoder is a build option many ffmpeg
+# packages leave out (Homebrew's does), and a still nobody can extract is
+# worse than one without an alpha channel. The page's ground is black, which
+# is what a transparent corner was being composited onto anyway.
+POSTER_SUFFIX = ".poster.jpg"
+
+
+def _ffmpeg_available() -> bool:
+    for tool in ("ffprobe", "ffmpeg"):
+        if shutil.which(tool) is None:
+            return False
+    return True
+
+
+def _duration_s(path: Path) -> float:
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True, timeout=30)
+    try:
+        return float(out.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def build_posters(pieces: list[dict], media_dir: Path, log=print) -> list[dict]:
+    """Give every animated piece a still to show before it plays.
+
+    A `<video>` with no poster paints nothing until it has decoded a frame, so
+    without this a page of seventy animated pieces opens as a page of empty
+    boxes — and stays that way for the ones a phone declines to load at all.
+    The still is what the grid shows; the video is attached on top only while
+    the tile is on screen.
+
+    Without ffmpeg there is nothing to extract and the pieces come back
+    unchanged, which the page falls back to handling by showing the video
+    element directly. Said once, out loud, because the difference is visible.
+    """
+    animated = [p for p in pieces if p["kind"] == "animated"]
+    if not animated:
+        return pieces
+    if not _ffmpeg_available():
+        log("  ! ffmpeg not found: animated pieces will have no still to show"
+            " before they play. Install ffmpeg and rebuild for a grid that"
+            " fills in immediately.")
+        return pieces
+
+    posters, made = {}, 0
+    for piece in animated:
+        source = media_dir / Path(piece["media_path"]).name
+        target = source.with_suffix("")
+        target = target.with_name(target.name + POSTER_SUFFIX)
+        if not target.exists():
+            at = _duration_s(source) * POSTER_AT
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-ss", f"{at:.3f}",
+                 "-i", str(source), "-frames:v", "1", "-c:v", "mjpeg",
+                 "-q:v", "4", str(target)],
+                capture_output=True, text=True, timeout=60)
+            if result.returncode != 0 or not target.exists():
+                log(f"  ! piece {piece['id']}: no still ({result.stderr.strip()[:80]})")
+                continue
+            made += 1
+        posters[piece["id"]] = f"media/{target.name}"
+    if made:
+        log(f"  {made} stills extracted")
+    return [piece | {"poster_url": posters.get(piece["id"])} for piece in pieces]
 
 
 # ---- turning them into a page --------------------------------------------
@@ -263,6 +342,8 @@ def build(base_url: str, password: str, out_dir: Path, winner_ids: list[int],
     pieces = download_media(base_url, pieces, out_dir / "media", log=log)
     if not pieces:
         raise GalleryError("Nothing to publish: no media could be fetched.")
+
+    pieces = build_posters(pieces, out_dir / "media", log=log)
 
     (out_dir / "index.html").write_text(
         render_page(pieces, winner_ids, title, subtitle), encoding="utf-8")
