@@ -206,10 +206,18 @@ git push --set-upstream <url> main
 # then: Settings -> Pages -> Deploy from a branch -> main / (root)
 ```
 
-**Taking a piece out of the published gallery** is deleting its media file
-from that repository and nothing else — the tile hides itself when its media
-does not load, and the grid closes up. A later rebuild fetches it again, so
-a removal that has to survive one goes in `--exclude 14,22`.
+**Taking a piece out of the published gallery** is `rm media/14.*` in that
+repository and nothing else — the tile hides itself when its image does not
+load, and the grid closes up. The glob matters: an animated piece is two
+files, the loop and the still extracted from it, and they share a stem for
+exactly this reason. A later rebuild fetches it again, so a removal that has
+to survive one goes in `--exclude 14,22`.
+
+Animated pieces get that still from **ffmpeg**, at build time. Without it the
+build still works and says so, but the grid opens as a page of empty boxes:
+a `<video>` paints nothing until it has decoded a frame, and a phone will not
+decode seventy of them. With the stills, the grid is images and a video is
+attached to a tile only while it is on screen, eight at a time.
 
 Everything published is byline-only: no contact name, no email, no phone, no
 company. The export endpoint the generator reads leaves those out entirely,

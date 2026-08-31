@@ -5,8 +5,17 @@
 <button class="tile" type="button"
         data-id="{{ piece.id }}" data-kind="{{ piece.kind }}"
         data-src="{{ piece.media_url }}"
-        data-byline="{{ piece.byline or '' }}">
-  {%- if piece.kind == "animated" %}
+        data-byline="{{ piece.byline or '' }}"
+        {%- if piece.poster_url %} data-poster="{{ piece.poster_url }}"{% endif %}>
+  {#- The grid is stills. An animated piece shows its poster and has the video
+      hung on top only while the tile is on screen, so a page of seventy of
+      them holds a handful of media players rather than seventy. Without
+      ffmpeg at build time there is no poster, and the video element is the
+      fallback. -#}
+  {%- if piece.kind == "animated" and piece.poster_url %}
+  <img src="{{ piece.poster_url }}" loading="lazy" data-video="{{ piece.media_url }}"
+       alt="{% if piece.byline %}piece by {{ piece.byline }}{% else %}an unattributed piece{% endif %}">
+  {%- elif piece.kind == "animated" %}
   <video src="{{ piece.media_url }}" muted loop playsinline preload="metadata"></video>
   {%- else %}
   <img src="{{ piece.media_url }}" loading="lazy"
@@ -54,6 +63,9 @@
     /* contain, not cover: a piece is composed to its own frame, and cropping
        it to fill a square would edit somebody's artwork. */
     object-fit: contain; }
+  /* The playing video covers its own poster exactly, so the swap is invisible
+     rather than a jump. */
+  .tile video.live { position: absolute; inset: 0; }
   .tile:hover, .tile:focus-visible { outline: 2px solid var(--accent);
     outline-offset: -2px; }
   /* `display: block` above outranks the browser's own rule for [hidden], so
@@ -125,14 +137,18 @@
   {% for piece in pieces %}{{ tile(piece) }}{% endfor %}
 </div>
 
-{#- The highlighted source, parked outside the grid so a tile stays a tile,
-    and above the script rather than below it: a link straight to one piece
-    runs that script on load, and it has to find these already parsed. -#}
-<div hidden>
-  {%- for piece in pieces %}
-  <div id="code-{{ piece.id }}">{{ piece.code_html }}</div>
-  {%- endfor %}
-</div>
+{#- The highlighted source, above the script rather than below it: a link
+    straight to one piece runs that script on load and has to find these
+    already parsed.
+
+    In templates, not hidden divs. Seventy pieces of syntax-highlighted Python
+    is a span per token: a hundred and sixty thousand nodes, all of them laid
+    out and styled for the sake of one panel nobody has opened yet. A
+    template's content is parsed but inert, so the cost is paid on the piece
+    somebody actually clicks. -#}
+{%- for piece in pieces %}
+<template id="code-{{ piece.id }}">{{ piece.code_html }}</template>
+{%- endfor %}
 
 <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-byline">
   <div id="dialog">
@@ -161,16 +177,66 @@ for (const tile of tiles) {
   });
 }
 
-// Only what is on screen decodes. A phone scrolling a page of a hundred
-// looping VP9 files will not play them all at once, and asking it to is how
-// the page stops scrolling.
+// Only what is on screen holds a media player. A browser will not keep
+// seventy of them alive. A phone gives up well before that and simply
+// declines to load the rest. So a tile carries a still until it scrolls into
+// view, borrows a video while it is there, and gives it back on the way out.
+const LIVE_CAP = 8;
+const live = new Set();
+const visible = new Set();
+
+function stopPlaying(poster) {
+  const video = poster.parentElement.querySelector("video.live");
+  if (video) { video.removeAttribute("src"); video.load(); video.remove(); }
+  live.delete(poster);
+}
+
+// A tile denied a slot gets no second intersection of its own, so scrolling
+// past a full screen of pieces would otherwise leave the rest frozen for as
+// long as they stay put. Whatever is on screen and still fills the gap.
+function fillFreeSlots() {
+  for (const poster of visible) {
+    if (live.size >= LIVE_CAP) return;
+    if (!live.has(poster)) startPlaying(poster);
+  }
+}
+
+function startPlaying(poster) {
+  if (live.has(poster) || live.size >= LIVE_CAP) return;
+  live.add(poster);
+  const video = document.createElement("video");
+  video.className = "live";
+  video.muted = video.loop = video.playsInline = true;
+  video.src = poster.dataset.video;
+  // A video that will not play leaves the still showing, which is the right
+  // thing to look at anyway.
+  video.addEventListener("error", () => stopPlaying(poster));
+  poster.parentElement.append(video);
+  video.play().catch(() => stopPlaying(poster));
+}
+
 const inView = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) { visible.add(entry.target); startPlaying(entry.target); }
+    else { visible.delete(entry.target); stopPlaying(entry.target); }
+  }
+  fillFreeSlots();
+}, { rootMargin: "100px" });
+for (const poster of document.querySelectorAll(".tile img[data-video]")) {
+  inView.observe(poster);
+}
+
+// The fallback path, when the gallery was built without ffmpeg and the tiles
+// carry video elements of their own.
+const plainVideos = new IntersectionObserver((entries) => {
   for (const entry of entries) {
     if (entry.isIntersecting) entry.target.play().catch(() => {});
     else entry.target.pause();
   }
-}, { rootMargin: "200px" });
-for (const video of document.querySelectorAll(".tile video")) inView.observe(video);
+}, { rootMargin: "100px" });
+for (const video of document.querySelectorAll(".tile > video")) {
+  plainVideos.observe(video);
+}
 
 const overlay = document.getElementById("overlay");
 const frame = document.getElementById("dialog-frame");
@@ -192,12 +258,15 @@ function show(id) {
   media.src = tile.dataset.src;
   if (kind === "animated") {
     media.autoplay = media.muted = media.loop = media.playsInline = true;
+    // Something to look at while the full-size loop decodes.
+    if (tile.dataset.poster) media.poster = tile.dataset.poster;
   } else {
     media.alt = tile.dataset.byline
       ? "piece by " + tile.dataset.byline : "an unattributed piece";
   }
   frame.append(media);
-  sourceBox.innerHTML = document.getElementById("code-" + id).innerHTML;
+  sourceBox.replaceChildren(
+    document.getElementById("code-" + id).content.cloneNode(true));
   bylineBox.innerHTML = tile.dataset.byline
     ? '<span>by</span> ' + tile.dataset.byline
     : '<span>unattributed</span>';
@@ -214,6 +283,7 @@ function show(id) {
 function close() {
   overlay.classList.remove("open");
   frame.innerHTML = "";          // stops a playing video rather than hiding it
+  sourceBox.replaceChildren();   // and hands back the piece's worth of nodes
   document.body.style.overflow = "";
   current = null;
   if (location.hash) history.pushState("", "", location.pathname);

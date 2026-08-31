@@ -7,6 +7,8 @@ event the wall no longer shows — leaving them out silently publishes the last
 day and calls it the gallery.
 """
 import json
+import shutil
+import subprocess
 
 import pytest
 
@@ -211,6 +213,95 @@ def test_a_removed_tile_closes_the_grid_up_behind_it(site):
     page = (site() / "index.html").read_text()
 
     assert ".tile[hidden] { display: none; }" in page
+
+
+# ---- the still every animated piece needs --------------------------------
+
+def _webm(path, seconds=1):
+    """A tiny real VP9 loop, so ffmpeg has something true to read."""
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", f"testsrc=size=64x64:rate=10:duration={seconds}",
+         "-c:v", "libvpx-vp9", "-b:v", "50k", str(path)],
+        check=True, capture_output=True, timeout=120)
+
+
+needs_ffmpeg = pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="poster extraction needs ffmpeg")
+
+
+@needs_ffmpeg
+def test_an_animated_piece_gets_a_still_beside_its_media(tmp_path):
+    """A <video> with no poster paints nothing until it decodes a frame, so
+    without this the grid opens as a page of empty boxes."""
+    media = tmp_path / "media"
+    media.mkdir()
+    _webm(media / "3.webm")
+    pieces = [{"id": 3, "kind": "animated", "media_path": "3.webm"}]
+
+    out = gallery.build_posters(pieces, media, log=lambda *a: None)
+
+    assert out[0]["poster_url"] == "media/3.poster.jpg"
+    assert (media / "3.poster.jpg").exists()
+
+
+@needs_ffmpeg
+def test_the_still_sits_beside_the_media_it_belongs_to(tmp_path):
+    """Removal from the published gallery is `rm media/3.*` and nothing else,
+    so the two files have to share a stem."""
+    media = tmp_path / "media"
+    media.mkdir()
+    _webm(media / "3.webm")
+
+    gallery.build_posters([{"id": 3, "kind": "animated",
+                            "media_path": "3.webm"}], media,
+                          log=lambda *a: None)
+
+    assert sorted(p.name for p in media.iterdir()) == ["3.poster.jpg",
+                                                       "3.webm"]
+
+
+def test_a_static_piece_needs_no_still(tmp_path):
+    media = tmp_path / "media"
+    media.mkdir()
+    pieces = [{"id": 3, "kind": "static", "media_path": "3.png"}]
+
+    assert gallery.build_posters(pieces, media, log=lambda *a: None) == pieces
+
+
+def test_without_ffmpeg_the_build_carries_on_and_says_so(tmp_path,
+                                                         monkeypatch):
+    """Losing the stills is a visible downgrade, not a failed build."""
+    monkeypatch.setattr(gallery, "_ffmpeg_available", lambda: False)
+    said = []
+    pieces = [{"id": 3, "kind": "animated", "media_path": "3.webm"}]
+
+    out = gallery.build_posters(pieces, tmp_path, log=said.append)
+
+    assert out == pieces                      # unchanged; no poster_url
+    assert any("ffmpeg" in line for line in said)
+
+
+def test_a_grid_tile_shows_the_still_and_names_its_video(site):
+    """The tile is an image; the video is hung on it only while on screen."""
+    page = gallery.render_page(
+        [{"id": 3, "kind": "animated", "media_url": "media/3.webm",
+          "poster_url": "media/3.poster.jpg", "byline": "Ada",
+          "code": "x = 1\n"}], [], "t", "s")
+
+    assert 'src="media/3.poster.jpg"' in page
+    assert 'data-video="media/3.webm"' in page
+    assert "<video" not in page.split("</style>")[1].split("<script")[0]
+
+
+def test_without_a_still_the_tile_falls_back_to_a_video(site):
+    page = gallery.render_page(
+        [{"id": 3, "kind": "animated", "media_url": "media/3.webm",
+          "poster_url": None, "byline": "Ada", "code": "x = 1\n"}],
+        [], "t", "s")
+
+    assert '<video src="media/3.webm"' in page
 
 
 def test_a_piece_whose_media_will_not_download_is_dropped(tmp_path,
