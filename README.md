@@ -187,6 +187,11 @@ python -m artwall.gallery --base-url https://artwall.example.com \
     --winners 12,45,88 --out ../artwall-gallery
 ```
 
+`--first 34,1,2` pins pieces to the front of the grid in the order given, for
+the ones that introduce the gallery rather than compete in it. The winners
+follow them, then everything else in id order, which is the order the event
+happened in. An id named in both is placed once.
+
 `--winners` takes the daily winners in day order: the first id is day one.
 Nothing in the database records the judges' decision, so this flag is the
 only place it exists. A winner keeps its place in the grid and wears a small
