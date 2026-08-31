@@ -33,8 +33,17 @@ clone fetches them all.
   phone declines to load that many media players at all. ffmpeg extracts one
   frame per animated piece at build time (mid-loop, since a loop that fades
   up from black opens on nothing), and the page attaches a video to a tile
-  only while it is on screen, eight at a time. Without ffmpeg the build
-  carries on and falls back to bare video elements, loudly.
+  only while it is on screen. What is on screen is the bound and it counts
+  itself: about ten pieces on a phone and fifty on a desktop, all moving. The
+  wall plays every approved piece at once on the booth TV and was tested at
+  fifty tiles (ADR-0003), so a screenful of loops is not the thing to be
+  careful about; holding a media player for all seventy seven is. Tiles are
+  200px rather than 160px for the same reason: the smaller tile fitted a
+  whole 1080p screenful of pieces, more than a browser hands out players for,
+  so a third of the grid sat still. Above a screenful that large some tiles
+  stay still whatever the ceiling says, and the ones nearest the middle of
+  the screen win. Without ffmpeg the build carries on and falls back to bare
+  video elements, loudly.
 - The highlighted source is inlined in `<template>` elements rather than
   hidden divs. Seventy pieces of syntax-highlighted Python is a span per
   token: 158,658 live DOM nodes as divs against 499 as templates, all of the

@@ -217,7 +217,11 @@ Animated pieces get that still from **ffmpeg**, at build time. Without it the
 build still works and says so, but the grid opens as a page of empty boxes:
 a `<video>` paints nothing until it has decoded a frame, and a phone will not
 decode seventy of them. With the stills, the grid is images and a video is
-attached to a tile only while it is on screen, eight at a time.
+attached to a tile only while it is on screen. What is on screen is the
+bound: about ten pieces on a phone, fifty on a desktop, all of them moving.
+A monitor big enough to show the whole gallery at once runs into the
+browser's own limit on media players, somewhere around seventy five, and the
+tiles nearest the middle of the screen are the ones that play.
 
 Everything published is byline-only: no contact name, no email, no phone, no
 company. The export endpoint the generator reads leaves those out entirely,

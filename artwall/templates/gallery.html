@@ -53,8 +53,19 @@
 
   /* Packed tight on purpose. The pieces are the page; there is no chrome
      between them to give the gaps a job. */
+  /* 160px tiles fitted a whole 1080p screenful of pieces, more of them than a
+     browser will give media players to, so a third of the grid sat still. At
+     200px a desktop holds about forty five, which is under the ceiling below
+     and under what the browser allows, so everything on screen moves. The
+     pieces are also just bigger to look at. */
   #all { display: grid; gap: 4px; padding: 4px;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  /* A 200px minimum is wider than half a phone, which would drop the grid to
+     a single column and turn the gallery into thirty five screens of
+     scrolling. Narrow screens keep two. */
+  @media (max-width: 700px) {
+    #all { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  }
 
   .tile { position: relative; aspect-ratio: 1; margin: 0; padding: 0;
     display: block; cursor: pointer; overflow: hidden;
@@ -181,9 +192,27 @@ for (const tile of tiles) {
 // seventy of them alive. A phone gives up well before that and simply
 // declines to load the rest. So a tile carries a still until it scrolls into
 // view, borrows a video while it is there, and gives it back on the way out.
-const LIVE_CAP = 8;
+// What is on screen is the bound, and it counts itself: about ten tiles on a
+// phone, forty on a desktop. The wall plays every approved piece at once on
+// the booth TV and a fifty-tile screenful is a load this art was tested at
+// (ADR-0003), so a screenful here is not the thing to be careful about. What
+// a browser will not do is hold one media player per piece for a page of
+// seventy-odd, which is why a tile off screen gives its video back.
+//
+// The ceiling is the browser's, not a policy: Chrome stops handing out media
+// players somewhere around seventy five and the ones past that quietly never
+// start. Sixty four sits under it with room to spare, and above a screenful
+// that large some tiles stay still whatever this number says. When it bites,
+// the tiles nearest the middle of the screen win, because that is where
+// somebody is looking.
+const LIVE_CEILING = 64;
 const live = new Set();
 const visible = new Set();
+
+function distanceFromCentre(poster) {
+  const box = poster.getBoundingClientRect();
+  return Math.abs((box.top + box.bottom) / 2 - innerHeight / 2);
+}
 
 function stopPlaying(poster) {
   const video = poster.parentElement.querySelector("video.live");
@@ -195,14 +224,20 @@ function stopPlaying(poster) {
 // past a full screen of pieces would otherwise leave the rest frozen for as
 // long as they stay put. Whatever is on screen and still fills the gap.
 function fillFreeSlots() {
-  for (const poster of visible) {
-    if (live.size >= LIVE_CAP) return;
-    if (!live.has(poster)) startPlaying(poster);
+  if (live.size >= LIVE_CEILING) return;
+  const waiting = [...visible].filter((poster) => !live.has(poster));
+  // Only worth ordering when there is more on screen than can play at once.
+  if (waiting.length + live.size > LIVE_CEILING) {
+    waiting.sort((a, b) => distanceFromCentre(a) - distanceFromCentre(b));
+  }
+  for (const poster of waiting) {
+    if (live.size >= LIVE_CEILING) return;
+    startPlaying(poster);
   }
 }
 
 function startPlaying(poster) {
-  if (live.has(poster) || live.size >= LIVE_CAP) return;
+  if (live.has(poster) || live.size >= LIVE_CEILING) return;
   live.add(poster);
   const video = document.createElement("video");
   video.className = "live";
